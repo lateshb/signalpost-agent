@@ -232,6 +232,25 @@ class InputTests(unittest.TestCase):
             jl.write_text('{"orgnr": "923609016"}\n{"organisation_number": 987654321}\n', encoding="utf-8")
             self.assertEqual([r["organisation_number"] for r in read_inputs_tolerant(jl)[0]], [ORG, "987654321"])
 
+    def test_american_spelling_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            jl = Path(directory) / "in.jsonl"
+            jl.write_text('{"organization_number": "923609016"}\n{"organizationNumber": 987654321}\n', encoding="utf-8")
+            rows, issues = read_inputs_tolerant(jl)
+            self.assertEqual([r["organisation_number"] for r in rows], [ORG, "987654321"])
+            self.assertEqual(issues["invalid"], [])
+
+    def test_unreadable_snapshot_is_not_fatal(self):
+        from norway_company_agent.batch import load_bulk_profiles
+
+        with tempfile.TemporaryDirectory() as directory:
+            bulk = Path(directory) / "snapshot.jsonl"
+            bulk.write_text('{"organisation_number": "923609016"}\n', encoding="utf-8")
+            found, metadata = load_bulk_profiles(bulk, [ORG])
+            self.assertEqual(found, {})
+            self.assertEqual(metadata["missing"], [ORG])
+            self.assertIn("snapshot_error", metadata)
+
 
 RUNNER_HARNESS = textwrap.dedent('''
     import json, runpy, sys, time
@@ -315,6 +334,18 @@ class RunnerEndToEndTests(unittest.TestCase):
             envs2 = {json.loads(l)["organisation_number"]: json.loads(l) for l in (d / "out2.jsonl").read_text(encoding="utf-8").splitlines()}
             self.assertEqual(envs2["923609016"]["changes"], [])
             self.assertEqual(envs2["923609016"]["refresh"]["mode"], "diff")
+
+
+class SummaryTests(unittest.TestCase):
+    def test_unknowns_read_naturally(self):
+        from norway_company_agent.summary import summarize
+
+        envelope = {"organisation_number": ORG, "legal_identity": {"name": "Fjordbygg AS"},
+                    "sections": {"website": {"state": "not_available"}, "hiring": {"state": "ambiguous"}}, "claims": []}
+        summary, unknowns = summarize(envelope)
+        self.assertEqual(unknowns, ["A verified company website: none found.",
+                                    "Job postings: could not be tied to this exact company."])
+        self.assertIn("Not found or not confirmed: a verified company website, job postings.", summary)
 
 
 class PortabilityTests(unittest.TestCase):

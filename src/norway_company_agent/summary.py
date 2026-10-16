@@ -109,13 +109,15 @@ def summarize(envelope: dict[str, Any]) -> tuple[str, list[str]]:
 
     # Unknowns.
     unknowns = []
+    missing_labels = []
     for key, label in SECTION_LABELS.items():
         state = (sections.get(key) or {}).get("state")
         if state in (None, "available", "not_applicable"):
             continue
         reason = {"ambiguous": "could not be tied to this exact company", "blocked": "source blocked access",
                   "failed": "source failed in this run"}.get(state, "none found")
-        unknowns.append(f"No {label}: {reason}.")
+        missing_labels.append(label)
+        unknowns.append(f"{label[0].upper()}{label[1:]}: {reason}.")
     if unknowns:
-        sentences.append("Not found or not confirmed: " + ", ".join(u.split(":")[0][3:] for u in unknowns) + ".")
+        sentences.append("Not found or not confirmed: " + ", ".join(missing_labels) + ".")
     return " ".join(sentences), unknowns

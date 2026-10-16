@@ -51,7 +51,7 @@ def read_organisation_inputs(path: str | Path) -> list[dict[str, Any]]:
     return records
 
 
-ORG_KEYS = ("organisation_number", "organisationNumber", "organisasjonsnummer", "orgnr", "org_number", "org", "id")
+ORG_KEYS = ("organisation_number", "organisationNumber", "organization_number", "organizationNumber", "organisasjonsnummer", "orgnr", "org_number", "org", "id")
 
 
 def _org_checksum_ok(org: str) -> bool:
@@ -128,24 +128,31 @@ def load_bulk_profiles(path: str | Path | None, organisation_numbers: Iterable[s
     wanted_set = set(wanted)
     found: dict[str, dict[str, Any]] = {}
     scanned = 0
-    for profile in iter_bulk(path):
-        scanned += 1
-        org = profile["organisation_number"]
-        if org not in wanted_set or org in found:
-            continue
-        raw = profile.pop("raw", {})
-        profile["evidence"] = {
-            "registry": evidence("registry", "available", "official_registry_bulk",
-                                 "https://data.brreg.no/enhetsregisteret/api/enheter/lastned/csv",
-                                 value=raw, retrieved_at=retrieved_at, content_sha256=snapshot_sha256, source_row_key=org),
-            "accounting_obligation": accounting_obligation_assessment(profile),
-        }
-        found[org] = profile
-        if len(found) == len(wanted_set):
-            break
+    snapshot_error = None
+    try:
+        for profile in iter_bulk(path):
+            scanned += 1
+            org = profile["organisation_number"]
+            if org not in wanted_set or org in found:
+                continue
+            raw = profile.pop("raw", {})
+            profile["evidence"] = {
+                "registry": evidence("registry", "available", "official_registry_bulk",
+                                     "https://data.brreg.no/enhetsregisteret/api/enheter/lastned/csv",
+                                     value=raw, retrieved_at=retrieved_at, content_sha256=snapshot_sha256, source_row_key=org),
+                "accounting_obligation": accounting_obligation_assessment(profile),
+            }
+            found[org] = profile
+            if len(found) == len(wanted_set):
+                break
+    except Exception as exc:  # unreadable snapshot: companies not yet found fall back to the live registry
+        snapshot_error = f"{type(exc).__name__}: {exc}"
     missing = [org for org in wanted if org not in found]
-    return found, {"registry_snapshot_sha256": snapshot_sha256, "registry_rows_scanned": scanned,
-                   "requested": len(wanted), "selected": len(found), "missing": missing}
+    metadata = {"registry_snapshot_sha256": snapshot_sha256, "registry_rows_scanned": scanned,
+                "requested": len(wanted), "selected": len(found), "missing": missing}
+    if snapshot_error:
+        metadata["snapshot_error"] = snapshot_error
+    return found, metadata
 
 
 def read_organisation_numbers(path: str | Path) -> list[str]:
