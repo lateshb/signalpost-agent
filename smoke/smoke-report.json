@@ -1,9 +1,9 @@
 {
-  "run_id": "smoke-001",
+  "run_id": "smoke-003",
   "agent_version": "signalpost-agent-2026-10-16",
-  "started_at": "2026-10-16T08:44:34.843670Z",
-  "completed_at": "2026-10-16T08:46:07.398233Z",
-  "wall_seconds": 92.6,
+  "started_at": "2026-10-16T09:52:19.715694Z",
+  "completed_at": "2026-10-16T09:54:26.287582Z",
+  "wall_seconds": 126.8,
   "inputs": {
     "unique": 100,
     "valid": 100,
@@ -20,7 +20,7 @@
     "website": 6,
     "company_profiles": 2,
     "hiring": 0,
-    "activity": 2,
+    "activity": 1,
     "annual_accounts": 100,
     "leadership": 100,
     "workplaces": 73
@@ -42,7 +42,7 @@
     "leadership.role": 384,
     "legal_form": 100,
     "legal_name": 100,
-    "news_item": 5,
+    "news_item": 4,
     "official_website": 6,
     "public_brand": 2,
     "registered_employees": 10,
@@ -59,8 +59,8 @@
   },
   "operations": {
     "requests": 846,
-    "p50_company_ms": 6641,
-    "p95_company_ms": 43125,
+    "p50_company_ms": 7186,
+    "p95_company_ms": 42655,
     "third_party_cost_usd": 0
   },
   "validation": {

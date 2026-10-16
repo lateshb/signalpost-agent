@@ -217,9 +217,9 @@ def build_envelope(
         if state == "available" and not rows:
             state = "not_available"
         latest_period = None
-        for index, row in enumerate(rows):
+        for row in rows:
             period, year = _period(row)
-            if index == 0:
+            if year and (latest_period is None or str(year) > str(latest_period)):  # API order is not newest-first
                 latest_period = year
             for metric in FINANCIAL_METRICS:
                 amount = row.get(metric)

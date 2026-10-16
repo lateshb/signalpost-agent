@@ -200,6 +200,15 @@ class ContractTests(unittest.TestCase):
         self.assertIn("Kari Nordmann", env["summary"])
         self.assertIn("NOK 52.0 m", env["summary"])
 
+    def test_latest_accounts_year_when_api_lists_oldest_first(self):
+        profile = site_profile(pages=[], org_numbers=[ORG])
+        profile["evidence"]["financials"]["value"]["records"] = [
+            {"period": {"fraDato": f"{y}-01-01", "tilDato": f"{y}-12-31"}, "currency": "NOK", "revenue": r}
+            for y, r in ((2023, 243000), (2024, 230000), (2025, 212000))]
+        env = self.envelope(profile)
+        self.assertEqual(env["sections"]["annual_accounts"]["latest_period"], "2025")
+        self.assertIn("Latest filed accounts (2025): revenue NOK 212 k", env["summary"])
+
     def test_unverified_site_publishes_nothing_from_it(self):
         profile = site_profile(pages=[], title="Something else", org_numbers=["999888777"])
         profile["name"] = "Helt Annet AS"

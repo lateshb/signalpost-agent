@@ -26,19 +26,21 @@ Files in [`smoke/`](smoke/):
 - `smoke-envelopes.jsonl`: one envelope per company
 - `smoke-report.html`: browsable profiles with source links
 
-Run `smoke-001`, 16 Oct 2026, on a laptop:
+Run `smoke-003`, 16 Oct 2026, on a laptop:
 
 | | |
 |---|---|
 | Envelopes emitted | 100 of 100, validation passed |
-| Companies with section available | annual accounts 100, leadership 100, workplaces 73, website 6, company profiles 2, activity 2, hiring 0 |
+| Companies with section available | annual accounts 100, leadership 100, workplaces 73, website 6, company profiles 2, activity 1, hiring 0 |
 | Websites found by domain guessing | 4 (registry listed a website for only 7 of the 100) |
-| Time per company | p50 6.6 s, p95 43.1 s |
-| Wall time | 92.6 s |
+| Time per company | p50 7.2 s, p95 42.7 s |
+| Wall time | 126.8 s |
 | Requests | 846 |
 | Third-party cost | $0 |
 
 All six published websites were checked by hand against the registry name and address; no wrong-company matches were found.
+
+Refresh check: rerunning the same 100 companies with `--previous` produced 0 changes (idempotent).
 
 ## Models, APIs and licences
 
