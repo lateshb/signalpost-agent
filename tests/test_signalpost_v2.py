@@ -588,6 +588,25 @@ class ShortCommandTests(unittest.TestCase):
             self.assertTrue(report["run_id"].startswith("run-"))
 
 
+    def test_starter_kit_evaluator_command_runs_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            d = Path(directory)
+            (d / "harness.py").write_text(RUNNER_HARNESS.format(root=ROOT.as_posix()), encoding="utf-8")
+            (d / "batch.jsonl").write_text('{"organisation_number": "923609016"}\n', encoding="utf-8")
+            header = "organisasjonsnummer;navn;organisasjonsform.kode;hjemmeside\n923609016;Fjordbygg AS;AS;fjordbygg.no\n"
+            (d / "brreg.csv").write_text(header, encoding="utf-8")
+            cmd = [sys.executable, str(d / "harness.py"), "--organisations", "batch.jsonl", "--bulk", "brreg.csv",
+                   "--profiles-output", "out/profiles.jsonl", "--output", "out/envelopes.jsonl", "--report", "out/report.json",
+                   "--run-id", "day-1", "--expected-count", "1", "--workers", "8", "--checkpoint-every", "25", "--resume",
+                   "--modules", "registry,accounting_obligation,registry_live,financials,roles,group,locations,website",
+                   "--deadline-seconds", "6"]
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, cwd=d)
+            self.assertEqual(proc.returncode, 0, proc.stderr[-1500:])
+            envelopes = (d / "out" / "envelopes.jsonl").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(envelopes), 1)
+            self.assertTrue((d / "out" / "profiles.jsonl").exists())
+
+
 class PortabilityTests(unittest.TestCase):
     def test_operations_imports_without_unix_resource_module(self) -> None:
         import importlib

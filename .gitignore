@@ -12,3 +12,5 @@ smoke-companies.jsonl
 sample*.jsonl
 /demo-companies.txt
 .venv-local/
+*.jsonl.gz
+financial-filer-master-*.jsonl

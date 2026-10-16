@@ -140,6 +140,10 @@ def main() -> None:
     parser.add_argument("--no-discovery", action="store_true", help="Disable website discovery by domain guessing")
     parser.add_argument("--no-nav-jobs", action="store_true", help="Disable job postings from NAV's job vacancy feed")
     parser.add_argument("--modules", default=DEFAULT_MODULES)
+    # Accepted so the starter kit's evaluator command runs unchanged. Every run researches all inputs from scratch
+    # and writes its output files atomically at the end, so there is nothing to checkpoint or resume.
+    parser.add_argument("--checkpoint-every", type=int, help="Accepted for compatibility with the starter kit; not needed")
+    parser.add_argument("--resume", action="store_true", help="Accepted for compatibility with the starter kit; not needed")
     args = parser.parse_args()
     args.organisations = args.organisations or args.input_file
     if not args.organisations:
