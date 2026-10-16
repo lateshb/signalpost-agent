@@ -15,7 +15,7 @@ from typing import Any
 
 from bs4 import BeautifulSoup, Tag
 
-EXTRACTOR_VERSION = "site_items_v1"
+EXTRACTOR_VERSION = "site_items_v2"
 
 HIRING_TERMS = (
     "karriere", "career", "ledige-stillinger", "ledige stillinger", "stilling", "jobb", "jobs", "job",
@@ -38,7 +38,16 @@ GENERIC_LINK_TEXT = {
     "careers", "career", "read more", "see all", "view all", "open positions", "vacancies", "stillinger",
     "jobbe hos oss", "bli en av oss", "nyheter", "news", "aktuelt", "presse", "blogg", "blog", "her",
     "neste", "forrige", "next", "previous", "tilbake", "back", "meny", "menu", "hjem", "home",
+    "all announcements", "all news", "alle nyheter", "flere nyheter", "more news", "see all news", "alle artikler",
+    "investor relations", "investors", "press releases", "pressemeldinger",
 }
+# A job link must point at one posting: a posting segment followed by the posting's own path.
+POSTING_SEGMENTS = {"ledige-stillinger", "stillinger", "stilling", "stillingsannonse", "jobs", "job", "jobb", "jobber",
+                    "vacancies", "vacancy", "positions", "position", "openings", "job-openings", "utlysninger"}
+NOT_A_POSTING_TEXT = ("logg inn", "login", "log in", "sign in", "dine søknader", "your applications", "jobb hos", "jobbe hos",
+                      "jobb i ", "ledige stillinger", "open positions", "registrer", "register", "abonner", "subscribe")
+NOT_A_POSTING_PATH = ("login", "logon", "signin", "profile", "register", "signup", "subscribe", "/-/media/", "/media/", "/files/")
+FILE_SUFFIXES = (".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".jpg", ".jpeg", ".png", ".zip")
 
 NORWEGIAN_MONTHS = {
     "januar": 1, "jan": 1, "februar": 2, "feb": 2, "mars": 3, "mar": 3, "april": 4, "apr": 4, "mai": 5,
@@ -109,6 +118,59 @@ def _static_page(url: str, title: str = "") -> bool:
     path = urllib.parse.urlparse(url).path.casefold().strip("/")
     haystack = path.split("/")[-1] + " " + title.casefold()
     return not path or any(term in haystack for term in STATIC_PAGE_TERMS)
+
+
+def _segments(url: str) -> list[str]:
+    return [segment for segment in urllib.parse.urlparse(url).path.casefold().split("/") if segment]
+
+
+def _news_item_url(url: str) -> bool:
+    """A page under a news/press/blog section, with its own path segment (not the section index)."""
+    segments = _segments(url)
+    return any(any(term in segment for term in NEWS_TERMS) for segment in segments[:-1]) and not _static_page(url)
+
+
+def _posting_url(url: str, is_ats: bool) -> bool:
+    lowered = url.casefold()
+    path = urllib.parse.urlparse(lowered).path
+    if path.endswith(FILE_SUFFIXES) or any(marker in lowered for marker in NOT_A_POSTING_PATH):
+        return False
+    if is_ats:
+        return True
+    segments = _segments(url)
+    return any(segment in POSTING_SEGMENTS or segment.startswith("stilling") for segment in segments[:-1]) or \
+        any(segment.startswith(("stilling-", "job-", "jobb-")) for segment in segments[-1:])
+
+
+def _edge_date(text: str) -> str | None:
+    """A date written at the start or end of a link text ("07 October 2026 Title", "Title 25.09.2026").
+
+    A date in the middle of a title is usually an event date, not the publication date.
+    """
+    text = text or ""
+    for pattern in DATE_PATTERNS:
+        for match in pattern.finditer(text):
+            tail = text[match.end():].strip()
+            if match.start() <= 3 or len(tail) <= 3 or (tail[:1] in "-–|·" and len(tail) <= 40):
+                parsed = parse_date(match.group(0))
+                if parsed:
+                    return parsed
+    return None
+
+
+def _not_future(date: str | None) -> str | None:
+    today = datetime.now(timezone.utc).date().isoformat()
+    return date if date and date <= today else None
+
+
+def _dates_in(text: str) -> list[str]:
+    found: list[str] = []
+    for pattern in DATE_PATTERNS:
+        for match in pattern.finditer(text or ""):
+            parsed = parse_date(match.group(0))
+            if parsed and parsed not in found:
+                found.append(parsed)
+    return found
 
 
 def classify_page(url: str, title: str = "") -> str:
@@ -216,16 +278,17 @@ def extract_items(html: str, page_url: str, *, structured: dict[str, Any] | None
             }
         if types & {"NewsArticle", "BlogPosting", "Article", "PressRelease", "Report"}:
             headline = _clean(node.get("headline") or node.get("name"), 300)
-            published = parse_date(node.get("datePublished") or node.get("dateCreated"))
+            published = _not_future(parse_date(node.get("datePublished") or node.get("dateCreated")))
             url = urllib.parse.urljoin(page_url, str(node.get("url") or page_url))
-            if headline and published and not _static_page(url, headline):
+            strong_type = bool(types & {"NewsArticle", "BlogPosting", "PressRelease"})
+            if headline and published and not _static_page(url, headline) and (strong_type or _news_item_url(url)):
                 news[url] = {"title": headline, "url": url, "published": published, "claim_span": headline, "method": "json_ld_article"}
 
     # 2. Article page meta (this page itself is a dated article).
     meta_time = soup.select_one('meta[property="article:published_time"], meta[name="article:published_time"], meta[itemprop="datePublished"]')
     og_type = soup.select_one('meta[property="og:type"]')
-    if meta_time and (kind == "news" or (og_type and "article" in str(og_type.get("content") or "").casefold())):
-        published = parse_date(meta_time.get("content"))
+    if meta_time and _news_item_url(page_url) and (kind == "news" or (og_type and "article" in str(og_type.get("content") or "").casefold())):
+        published = _not_future(parse_date(meta_time.get("content")))
         og_title = soup.select_one('meta[property="og:title"]')
         headline = _clean((og_title.get("content") if og_title else "") or title, 300)
         if published and headline and page_url not in news and not _static_page(page_url, headline):
@@ -247,14 +310,10 @@ def extract_items(html: str, page_url: str, *, structured: dict[str, Any] | None
         if is_ats:
             ats_links.add(url)
         if kind == "hiring" or is_ats:
-            path = parsed.path.casefold()
-            looks_like_posting = is_ats or (
-                same_site
-                and any(term in path for term in ("stilling", "job", "jobb", "vacanc", "position", "karriere/", "career/", "careers/"))
-                and parsed.path.rstrip("/") != urllib.parse.urlparse(page_url).path.rstrip("/")
-                and path.count("/") >= 2
-            )
-            if looks_like_posting and not generic and 6 <= len(text) <= 140:
+            looks_like_posting = (is_ats or same_site) and _posting_url(url, is_ats) and \
+                parsed.path.rstrip("/") != urllib.parse.urlparse(page_url).path.rstrip("/")
+            not_posting_text = any(marker in text.casefold() for marker in NOT_A_POSTING_TEXT)
+            if looks_like_posting and not generic and not not_posting_text and 6 <= len(text) <= 140:
                 block_text, block = _block_text(anchor)
                 key = url + "#" + text
                 if key not in jobs:
@@ -271,8 +330,17 @@ def extract_items(html: str, page_url: str, *, structured: dict[str, Any] | None
         if kind == "news" and same_site and not generic and 15 <= len(text) <= 200:
             if parsed.path.rstrip("/") == urllib.parse.urlparse(page_url).path.rstrip("/"):
                 continue
-            block_text, block = _block_text(anchor)
-            published = _block_date(block, block_text)
+            segments = _segments(url)
+            if _static_page(url, text) or not (len(segments) >= 2 or (segments and "-" in segments[-1])):
+                continue
+            published = _edge_date(text)
+            if not published:
+                block_text, block = _block_text(anchor)
+                stamps = [parse_date(tag.get("datetime")) for tag in (block.select("time[datetime]") if block is not None else [])]
+                # The link's own text was already checked; a date in the middle of it is an event date, not a publication date.
+                candidates = list(dict.fromkeys([d for d in stamps if d] + _dates_in(block_text.replace(text, " "))))
+                published = candidates[0] if len(candidates) == 1 else None
+            published = _not_future(published)
             if published and url not in news:
                 news[url] = {"title": text, "url": url, "published": published, "claim_span": text, "method": "news_page_link_with_date"}
 

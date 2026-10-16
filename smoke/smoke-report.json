@@ -1,9 +1,9 @@
 {
-  "run_id": "smoke-003",
+  "run_id": "smoke-007",
   "agent_version": "signalpost-agent-2026-10-16",
-  "started_at": "2026-10-16T09:52:19.715694Z",
-  "completed_at": "2026-10-16T09:54:26.287582Z",
-  "wall_seconds": 126.8,
+  "started_at": "2026-10-16T10:55:35.746382Z",
+  "completed_at": "2026-10-16T11:00:51.148543Z",
+  "wall_seconds": 315.5,
   "inputs": {
     "unique": 100,
     "valid": 100,
@@ -49,7 +49,20 @@
     "workplace": 76
   },
   "websites_found_by_domain_guess": 4,
+  "websites_found_by_email_domain": 0,
   "changes": 0,
+  "nav_jobs": {
+    "strategy": "nav_feed_orgnr_v1",
+    "status": "available",
+    "pages": 93,
+    "requests": 101,
+    "token": "public",
+    "active_ads": 9408,
+    "window_days": 45,
+    "load_seconds": 299.2,
+    "candidates_checked": 7,
+    "companies_with_jobs": 0
+  },
   "registry": {
     "registry_snapshot_sha256": "3c893221798722bab5ba19ede17cff395cc790b0d18a097d66c1e29e082532ad",
     "registry_rows_scanned": 1173971,
@@ -58,9 +71,9 @@
     "missing": []
   },
   "operations": {
-    "requests": 846,
-    "p50_company_ms": 7186,
-    "p95_company_ms": 42655,
+    "requests": 906,
+    "p50_company_ms": 8452,
+    "p95_company_ms": 59422,
     "third_party_cost_usd": 0
   },
   "validation": {

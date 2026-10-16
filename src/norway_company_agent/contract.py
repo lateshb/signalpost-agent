@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Iterable
 
 from .identity import _tokens
@@ -145,6 +146,20 @@ def _official_evidence(builder: _Builder, record: dict[str, Any], span: str, met
         extraction_method=method,
         effective_at=effective_at or record.get("effective_at"),
     )
+
+
+_ENTITY_IN_TEXT = re.compile(r"([^,;|()\n]{2,60}?)\s+(?:AS|ASA)\b")
+
+
+def _names_other_entity(text: Any, name_tokens: set[str]) -> bool:
+    """True when a job title names a company ("..., Aeron AS") that is not this legal entity."""
+    if not text or not name_tokens:
+        return False
+    for match in _ENTITY_IN_TEXT.finditer(str(text)):
+        entity = set(_tokens(match.group(1).split(" - ")[-1].split(" – ")[-1]))
+        if entity and not name_tokens <= entity:
+            return True
+    return False
 
 
 def _period(record: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -310,7 +325,7 @@ def build_envelope(
             sections["website"] = {
                 "state": "available",
                 "verification": _verification_label(assessment),
-                "found_by": "domain_guess" if website.get("discovery") else "registry_link",
+                "found_by": ("email_domain" if (website.get("discovery") or {}).get("strategy") == "email_domain_v1" else "domain_guess") if website.get("discovery") else "registry_link",
             }
         elif website.get("status") == "available":
             sections["website"] = {"state": "ambiguous", "note": "; ".join(assessment.get("reasons") or [])[:300]}
@@ -367,6 +382,8 @@ def build_envelope(
                 hiring_org = job.get("hiring_organization")
                 if hiring_org and name_tokens and not (set(_tokens(hiring_org)) & name_tokens):
                     continue  # posting names a different employer
+                if _names_other_entity(job.get("title"), name_tokens):
+                    continue  # e.g. a subsidiary's job on the group's careers page: not this legal entity
                 ev = builder.add_evidence(source_url=page_url, source_class="company_owned", retrieved_at=page.get("retrieved_at") or retrieved,
                                           content_sha256=page.get("content_sha256"), claim_span=job.get("claim_span") or job["title"],
                                           extraction_method=job.get("method") or "site_items")
@@ -405,6 +422,31 @@ def build_envelope(
         for name in ("company_profiles", "hiring", "activity"):
             sections[name] = {"state": "not_available", "note": note}
 
+    # Job postings from NAV's job board, matched by organisation number (company or registered subunit).
+    nav = records.get("nav_jobs") or {}
+    nav_jobs = ((nav.get("value") or {}).get("jobs") or []) if nav.get("status") == "available" else []
+    added = 0
+    for job in nav_jobs:
+        ev = builder.add_evidence(
+            source_url=job["url"], source_class="public_job_board", source_type="nav_job_vacancy_feed",
+            retrieved_at=job.get("retrieved_at"), content_sha256=job.get("content_sha256"),
+            claim_span=f"NAV ad {job.get('nav_uuid')}: employer {job.get('employer_name')} (org.nr {job.get('employer_orgnr')}) - {job['title']}",
+            extraction_method="nav_feed_entry_orgnr_match", effective_at=job.get("date_posted"),
+        )
+        before = len(builder.claims)
+        builder.add_claim(
+            "job_posting",
+            {**{k: job.get(k) for k in ("title", "url", "location", "date_posted", "closing_date")},
+             "source": "arbeidsplassen.nav.no", "employer_orgnr": job.get("employer_orgnr")},
+            [ev], identity=["nav", job.get("nav_uuid")], confidence=0.98, effective_at=job.get("date_posted"),
+            section="hiring", extraction_method="nav_feed_entry_orgnr_match",
+        )
+        added += len(builder.claims) - before
+    if added:
+        site_jobs = (sections.get("hiring") or {}).get("count") if (sections.get("hiring") or {}).get("state") == "available" else 0
+        sections["hiring"] = {"state": "available", "count": int(site_jobs or 0) + added,
+                              "sources": [s for s, n in (("company website", site_jobs), ("arbeidsplassen.nav.no", added)) if n]}
+
     terminal_failed = bool(profile.get("terminal_failure"))
     envelope = {
         "schema_version": SCHEMA_VERSION,
@@ -431,9 +473,10 @@ def build_envelope(
         },
         "attempts": profile.get("attempts") or [],
     }
-    from .summary import summarize  # local import keeps modules small
+    from .summary import summarize, summary_citations  # local import keeps modules small
 
     envelope["summary"], envelope["unknowns"] = summarize(envelope)
+    envelope["summary_citations"] = summary_citations(envelope)
     return envelope
 
 

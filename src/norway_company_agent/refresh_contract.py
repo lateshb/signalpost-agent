@@ -86,6 +86,19 @@ def apply_refresh(current: dict[str, Any], previous: dict[str, Any] | None) -> d
                 if ev_id in prev_evidence and ev_id not in evidence_ids:
                     current.setdefault("evidence", []).append(prev_evidence[ev_id])
                     evidence_ids.add(ev_id)
+    # The NAV job feed was unavailable this run: keep last run's NAV postings instead of reporting them closed.
+    if (cur_sections.get("hiring") or {}).get("nav_feed") == "unavailable":
+        for key, old in prev_claims.items():
+            value = old.get("value")
+            from_nav = isinstance(value, dict) and value.get("source") == "arbeidsplassen.nav.no"
+            if key in current_keys or not from_nav:
+                continue
+            claims.append({**old, "carried_forward": True, "last_observed_at": old.get("last_observed_at") or prev_run.get("completed_at")})
+            current_keys.add(key)
+            for ev_id in old.get("evidence_ids") or []:
+                if ev_id in prev_evidence and ev_id not in evidence_ids:
+                    current.setdefault("evidence", []).append(prev_evidence[ev_id])
+                    evidence_ids.add(ev_id)
     for name in carried_sections:
         cur_sections[name]["carried_forward_from_run"] = prev_run.get("run_id")
 
@@ -111,6 +124,13 @@ def apply_refresh(current: dict[str, Any], previous: dict[str, Any] | None) -> d
             continue
         changes.append({"type": _change_type(old["field"], "removed"), "field": old["field"], "claim_key": key,
                         "before": old.get("value"), "after": None, "evidence_before": old.get("evidence_ids")})
+
+    # Keep the evidence for the "before" side of every change inside this envelope.
+    for change in changes:
+        for ev_id in change.get("evidence_before") or []:
+            if ev_id in prev_evidence and ev_id not in evidence_ids:
+                current.setdefault("evidence", []).append({**prev_evidence[ev_id], "from_previous_run": prev_run.get("run_id")})
+                evidence_ids.add(ev_id)
 
     material = {"new_job", "closed_job", "new_role", "removed_role", "new_location", "removed_location", "website_found",
                 "website_lost", "new_filing_value", "changed_description", "new_activity"}

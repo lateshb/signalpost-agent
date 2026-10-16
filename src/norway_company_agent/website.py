@@ -49,6 +49,8 @@ PRIORITY_GROUPS = (
     ("locations", ("locations", "lokasjoner", "avdelinger", "butikker", "kontorer", "finn-oss", "find-us")),
 )
 DEFAULT_PAGE_LIMIT = 8
+# Within the hiring group, pages that list open positions come before general career pages.
+LISTING_TERMS = ("ledige-stillinger", "ledige stillinger", "stillinger", "jobs", "vacanc", "openings", "positions", "stilling")
 
 
 def assert_public_url(url: str) -> None:
@@ -223,9 +225,9 @@ def _link_group(haystack: str) -> int | None:
     return None
 
 
-def _round_robin(candidates: dict[str, tuple[int, int]], limit: int) -> list[str]:
+def _round_robin(candidates: dict[str, tuple[int, int, int]], limit: int) -> list[str]:
     by_group: dict[int, list[str]] = {}
-    for url, (group, depth) in sorted(candidates.items(), key=lambda item: (item[1][1], len(item[0]), item[0])):
+    for url, (group, _listing, _depth) in sorted(candidates.items(), key=lambda item: (item[1][1], item[1][2], len(item[0]), item[0])):
         by_group.setdefault(group, []).append(url)
     ordered: list[str] = []
     while len(ordered) < limit and any(by_group.values()):
@@ -237,7 +239,7 @@ def _round_robin(candidates: dict[str, tuple[int, int]], limit: int) -> list[str
 
 def _priority_links(base_url: str, soup: BeautifulSoup, limit: int = DEFAULT_PAGE_LIMIT, extra_urls: list[str] | None = None) -> list[str]:
     base = urllib.parse.urlparse(base_url)
-    candidates: dict[str, tuple[int, int]] = {}
+    candidates: dict[str, tuple[int, int, int]] = {}
 
     def consider(url: str, text: str) -> None:
         parsed = urllib.parse.urlparse(url)
@@ -251,9 +253,10 @@ def _priority_links(base_url: str, soup: BeautifulSoup, limit: int = DEFAULT_PAG
         if clean.rstrip("/") == base_url.rstrip("/"):
             return
         depth = parsed.path.strip("/").count("/")
+        listing = 0 if PRIORITY_GROUPS[group][0] == "hiring" and any(term in haystack for term in LISTING_TERMS) else 1
         previous = candidates.get(clean)
-        if previous is None or (group, depth) < previous:
-            candidates[clean] = (group, depth)
+        if previous is None or (group, listing, depth) < previous:
+            candidates[clean] = (group, listing, depth)
 
     for anchor in soup.select("a[href]"):
         href = str(anchor.get("href") or "").strip()

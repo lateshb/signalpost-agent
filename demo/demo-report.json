@@ -1,0 +1,103 @@
+{
+  "run_id": "demo-004",
+  "agent_version": "signalpost-agent-2026-10-16",
+  "started_at": "2026-10-16T10:55:35.727890Z",
+  "completed_at": "2026-10-16T11:00:40.209264Z",
+  "wall_seconds": 304.5,
+  "inputs": {
+    "unique": 11,
+    "valid": 11,
+    "invalid": [],
+    "duplicates": [],
+    "header_lines_skipped": 0
+  },
+  "emitted_envelopes": 11,
+  "status_counts": {
+    "available": 11
+  },
+  "timed_out": [],
+  "companies_with_section_available": {
+    "website": 4,
+    "company_profiles": 4,
+    "hiring": 5,
+    "activity": 3,
+    "annual_accounts": 11,
+    "leadership": 11,
+    "workplaces": 11
+  },
+  "claims_by_field": {
+    "business_address": 11,
+    "company_description": 4,
+    "company_profile": 14,
+    "financials.annual_result": 33,
+    "financials.assets": 33,
+    "financials.debt": 33,
+    "financials.equity": 33,
+    "financials.operating_result": 33,
+    "financials.profit_before_tax": 33,
+    "financials.revenue": 33,
+    "group.related_entity": 231,
+    "industry": 11,
+    "job_posting": 29,
+    "latest_submitted_accounts_year": 11,
+    "leadership.role": 119,
+    "legal_form": 11,
+    "legal_name": 11,
+    "news_item": 23,
+    "official_website": 4,
+    "registered_employees": 10,
+    "workplace": 124
+  },
+  "websites_found_by_domain_guess": 0,
+  "websites_found_by_email_domain": 0,
+  "changes": 0,
+  "nav_jobs": {
+    "strategy": "nav_feed_orgnr_v1",
+    "status": "available",
+    "pages": 93,
+    "requests": 107,
+    "token": "public",
+    "active_ads": 9408,
+    "window_days": 45,
+    "load_seconds": 300.8,
+    "candidates_checked": 13,
+    "companies_with_jobs": 4
+  },
+  "registry": {
+    "registry_snapshot_sha256": null,
+    "requested": 11,
+    "selected": 0,
+    "missing": [
+      "834327082",
+      "837895502",
+      "924436808",
+      "930060658",
+      "938702675",
+      "976605713",
+      "976695372",
+      "979543883",
+      "979608861",
+      "995754606",
+      "999296432"
+    ],
+    "note": "no snapshot supplied"
+  },
+  "operations": {
+    "requests": 194,
+    "p50_company_ms": 20608,
+    "p95_company_ms": 57344,
+    "third_party_cost_usd": 0
+  },
+  "validation": {
+    "passed": true,
+    "checks": {
+      "exact_expected_count": true,
+      "same_order_as_input": true,
+      "unique_organisation_numbers": true,
+      "all_claims_have_evidence": true,
+      "all_states_valid": true,
+      "no_null_financials": true
+    },
+    "problems": []
+  }
+}

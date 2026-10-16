@@ -113,6 +113,61 @@ class SiteItemTests(unittest.TestCase):
         news = extract_items(html.replace("Kontakt old", "Nytt verksted"), "https://fjordbygg.no/nyheter/nytt-verksted", structured=post)["news"]
         self.assertEqual([n["title"] for n in news], ["Nytt verksted"])
 
+    def test_news_list_dates_come_from_each_item(self):
+        html = """<html><head><title>Blog</title></head><body><div class="list">
+          <a href="/blog/automated-optical-inspection">07 October 2026 Automated Optical Inspection: Catching Defects Early</a>
+          <a href="/blog/automated-ic-programming">23 September 2026 Automated IC Programming: Preventing Errors</a>
+          <a href="/blog/healthcare-together">Building Healthcare Solutions Together with partners</a>
+          <a href="/investors">All announcements</a></div></body></html>"""
+        news = {n["url"].rsplit("/", 1)[1]: n["published"] for n in extract_items(html, "https://www.kitron.com/blog")["news"]}
+        self.assertEqual(news, {"automated-optical-inspection": "2026-10-07", "automated-ic-programming": "2026-09-23"})
+
+    def test_event_dates_and_future_dates_are_not_publication_dates(self):
+        from datetime import date, timedelta
+
+        future = (date.today() + timedelta(days=5)).strftime("%d.%m.%Y")
+        html = f"""<html><head><title>Nyheter</title></head><body>
+          <li><a href="/nyheter/kundetur-2026">Opplev Andalucía på kundetur {future}</a></li>
+          <li><a href="/nyheter/informasjonsmote">Invitasjon til informasjonsmøte 1. desember 2025 i Haugesund sentrum</a></li>
+          <li><a href="/nyheter/nytt-kontor">Nytt kontor i Bergen åpnet 02.09.2026</a></li></body></html>"""
+        news = {n["url"].rsplit("/", 1)[1]: n["published"] for n in extract_items(html, "https://bank.no/nyheter")["news"]}
+        self.assertEqual(news, {"nytt-kontor": "2026-09-02"})
+
+    def test_date_before_category_label_is_publication_date(self):
+        html = """<html><head><title>Presse</title></head><body>
+          <li><a href="/presse/artikler/2026/takmontering">Takmontering med millimeterpresisjon 25.09.2026 - Bygg</a></li></body></html>"""
+        self.assertEqual([n["published"] for n in extract_items(html, "https://www.afgruppen.no/presse/")["news"]], ["2026-09-25"])
+
+    def test_job_listing_pages_are_crawled_before_general_career_pages(self):
+        from bs4 import BeautifulSoup
+        from norway_company_agent.website import _priority_links
+
+        soup = BeautifulSoup("""<a href="/karriere/mangfold/">Mangfold</a><a href="/karriere/studenter/">Studenter</a>
+            <a href="/karriere/ledige-stillinger/">Ledige stillinger</a><a href="/presse/">Presse</a>""", "lxml")
+        links = _priority_links("https://www.afgruppen.no/", soup, limit=2)
+        self.assertEqual(links[0], "https://www.afgruppen.no/karriere/ledige-stillinger/")
+
+    def test_career_info_pages_files_and_logins_are_not_jobs(self):
+        html = """<html><head><title>Karriere</title></head><body>
+          <a href="/karriere/studenter/">Student og nyutdannet</a>
+          <a href="/karriere/mangfold/">Mangfold i AF</a>
+          <a href="/-/media/fellesfiler/forsikring.pdf">Kort beskrivelse av reiseforsikringen</a>
+          <a href="https://web103.reachmee.com/ext/I017/1104/profile?site=14">Logg inn for å se dine søknader</a>
+          <a href="/om-entra/jobb-hos-entra">Jobb hos Entra</a>
+          <a href="/karriere/ledige-stillinger/2026/08/af-anlegg-larling-2027">AF Anlegg - Lærling 2027</a>
+          <a href="https://web103.reachmee.com/ext/I017/1104/job?site=14&job_id=1234">Prosjektleder eiendom</a>
+        </body></html>"""
+        titles = [j["title"] for j in extract_items(html, "https://www.afgruppen.no/karriere/")["jobs"]]
+        self.assertEqual(sorted(titles), ["AF Anlegg - Lærling 2027", "Prosjektleder eiendom"])
+
+    def test_article_meta_only_for_pages_under_a_news_section(self):
+        page = """<html><head><title>{t}</title><meta property="og:type" content="article">
+          <meta property="article:published_time" content="2026-01-26T10:00:00Z"><meta property="og:title" content="{t}"></head><body></body></html>"""
+        self.assertEqual(extract_items(page.format(t="Ombygging og prosjektledelse"), "https://www.entra.no/produkter-og-tjenester/ombygging")["news"], [])
+        self.assertEqual(extract_items(page.format(t="Nyheter fra Entra"), "https://www.entra.no/om-entra/nyheter-presse")["news"], [])
+        news = extract_items(page.format(t="Multiconsult samler Oslo-kontorene"), "https://www.entra.no/om-entra/nyheter-presse/multiconsult-samler")["news"]
+        self.assertEqual([n["title"] for n in news], ["Multiconsult samler Oslo-kontorene"])
+
     def test_org_numbers_need_a_cue(self):
         self.assertEqual(org_numbers_in_text("Fjordbygg AS · Org.nr. 923 609 016 · Tlf 55 55 55 55"), [ORG])
         self.assertEqual(org_numbers_in_text("NO 923609016 MVA"), [ORG])
@@ -171,6 +226,118 @@ class DomainGuessTests(unittest.TestCase):
         self.assertIsNone(found)
 
 
+class EmailDomainTests(unittest.TestCase):
+    def test_email_domain_first_and_generic_skipped(self):
+        from norway_company_agent.domain_guess import email_domains
+
+        profile = site_profile(pages=[])
+        profile["evidence"]["registry"]["value"]["epostadresse"] = "post@Fjordbygg.no"
+        self.assertEqual(email_domains(profile), ["fjordbygg.no"])
+        profile["evidence"]["registry"]["value"]["epostadresse"] = "fjordbygg@gmail.com"
+        self.assertEqual(email_domains(profile), [])
+        profile["evidence"]["registry"]["value"]["epostadresse"] = "styret@styrerommet.no"
+        self.assertEqual(email_domains(profile), [])
+
+    def test_email_domain_site_still_needs_strict_gate(self):
+        profile = site_profile(pages=[])
+        profile["name"] = "Helt Annet AS"
+        profile["evidence"]["registry"]["value"]["epostadresse"] = "post@fjordbygg.no"
+        good = site_profile(pages=[])["evidence"]["website"]
+        tried = []
+
+        def fetcher(url, **kwargs):
+            tried.append(url)
+            return json.loads(json.dumps(good)), {"requests": 1, "bytes": 1, "latencies_ms": [1]}
+
+        found, attempt = discover_website(profile, resolver=lambda host: True, fetcher=fetcher)
+        self.assertEqual(tried[0], "https://fjordbygg.no/")
+        self.assertIsNone(found)  # name and org number do not match this company
+        self.assertEqual(attempt["candidates"][0]["strategy"], "email_domain_v1")
+
+    def test_email_domain_found_by_label(self):
+        profile = site_profile(pages=[], org_numbers=[ORG])
+        profile["evidence"]["registry"]["value"]["epostadresse"] = "post@fjordbygg.no"
+        good = site_profile(pages=[], org_numbers=[ORG])["evidence"]["website"]
+        found, _ = discover_website(profile, resolver=lambda host: True,
+                                    fetcher=lambda url, **kw: (json.loads(json.dumps(good)), {"requests": 1, "bytes": 1, "latencies_ms": []}))
+        profile["evidence"]["website"] = found
+        env = build_envelope(profile, run_id="t", started_at="a", completed_at="b")
+        self.assertEqual(env["sections"]["website"]["found_by"], "email_domain")
+
+
+class NavJobsTests(unittest.TestCase):
+    def getter(self, url, headers=None, timeout=30):
+        from norway_company_agent import nav_jobs as nj
+
+        if url == nj.TOKEN_URL:
+            return 200, "Current public token:\naaa.bbb.ccc\n".encode()
+        if url == nj.FEED_URL:
+            self.assertIn("If-Modified-Since", headers)
+            items = [{"_feed_entry": {"uuid": u, "status": st, "businessName": bn, "title": "Jobb"}} for u, st, bn in
+                     (("u1", "ACTIVE", "Fjordbygg AS avd Bergen"), ("u2", "ACTIVE", "Fjordbygg AS"), ("u3", "INACTIVE", "Fjordbygg AS"),
+                      ("u4", "ACTIVE", "Helt Annet AS"))]
+            return 200, json.dumps({"items": items, "next_url": "/api/v1/feed/p2"}).encode()
+        if url.endswith("/api/v1/feed/p2"):
+            self.assertNotIn("If-Modified-Since", headers)
+            return 200, json.dumps({"items": [], "next_url": None}).encode()
+        uuid = url.rsplit("/", 1)[1]
+        orgnr = {"u1": "973000001", "u2": "999888777"}[uuid]  # u1: our subunit; u2: same name, other company
+        body = {"status": "ACTIVE", "ad_content": {"title": "Tømrer " + uuid, "link": f"https://arbeidsplassen.nav.no/stillinger/stilling/{uuid}",
+                "published": "2026-10-01T00:00:00+02:00", "applicationDue": "2026-10-30T00:00:00",
+                "employer": {"name": "FJORDBYGG AS AVD BERGEN", "orgnr": orgnr}, "workLocations": [{"city": "BERGEN"}]}}
+        return 200, json.dumps(body).encode()
+
+    def test_only_org_number_matches_are_published(self):
+        from norway_company_agent.nav_jobs import NavJobs
+
+        nav = NavJobs(getter=self.getter).start()
+        self.assertTrue(nav.wait(5))
+        self.assertEqual(nav.meta["status"], "available")
+        self.assertEqual(sorted(nav.ads), ["u1", "u2", "u4"])  # inactive ads dropped
+        found = nav.jobs_for({ORG: ("Fjordbygg AS", {"973000001"})}, budget_seconds=10)
+        jobs = found[ORG]["value"]["jobs"]
+        self.assertEqual([j["nav_uuid"] for j in jobs], ["u1"])
+        self.assertEqual((jobs[0]["location"], jobs[0]["date_posted"], jobs[0]["closing_date"]), ("Bergen", "2026-10-01", "2026-10-30"))
+        profile = site_profile(pages=[])
+        profile["evidence"]["nav_jobs"] = found[ORG]
+        env = build_envelope(profile, run_id="t", started_at="a", completed_at="b")
+        self.assertEqual(env["sections"]["hiring"]["state"], "available")
+        nav_claim = next(c for c in env["claims"] if c["field"] == "job_posting" and c["value"].get("source") == "arbeidsplassen.nav.no")
+        ev = next(e for e in env["evidence"] if e["id"] == nav_claim["evidence_ids"][0])
+        self.assertEqual(ev["source_class"], "public_job_board")
+        self.assertIn("973000001", ev["claim_span"])
+        self.assertTrue(validate_contract([env], [ORG])["passed"])
+
+    def test_nav_outage_on_refresh_keeps_last_jobs(self):
+        from norway_company_agent.nav_jobs import NavJobs
+
+        nav = NavJobs(getter=self.getter).start()
+        nav.wait(5)
+        profile = site_profile(pages=[])
+        profile["evidence"]["nav_jobs"] = nav.jobs_for({ORG: ("Fjordbygg AS", {"973000001"})}, budget_seconds=10)[ORG]
+        first = apply_refresh(build_envelope(profile, run_id="r1", started_at="a", completed_at="b"), None)
+        del profile["evidence"]["nav_jobs"]
+        second = build_envelope(profile, run_id="r2", started_at="a", completed_at="c")
+        second["sections"]["hiring"]["nav_feed"] = "unavailable"
+        second = apply_refresh(second, json.loads(json.dumps(first)))
+        self.assertEqual([c["type"] for c in second["changes"] if c["type"] == "closed_job"], [])
+        self.assertTrue(any(c.get("carried_forward") and c["value"].get("source") == "arbeidsplassen.nav.no" for c in second["claims"]))
+        # when NAV answered and the ad is gone, it is reported closed
+        third = apply_refresh(build_envelope(profile, run_id="r3", started_at="a", completed_at="d"), json.loads(json.dumps(first)))
+        self.assertIn("closed_job", [c["type"] for c in third["changes"]])
+        closed = next(c for c in third["changes"] if c["type"] == "closed_job")
+        third_evidence = {e["id"] for e in third["evidence"]}
+        self.assertTrue(set(closed["evidence_before"]) <= third_evidence)  # old side of the change stays verifiable
+
+    def test_feed_unavailable_is_not_fatal(self):
+        from norway_company_agent.nav_jobs import NavJobs
+
+        nav = NavJobs(getter=lambda url, headers=None, timeout=30: (503, b"")).start()
+        self.assertTrue(nav.wait(5))
+        self.assertEqual(nav.meta["status"], "source_error")
+        self.assertEqual(nav.jobs_for({ORG: ("Fjordbygg AS", set())}, budget_seconds=5), {})
+
+
 class ContractTests(unittest.TestCase):
     def envelope(self, profile=None):
         from norway_company_agent.identity import apply_website_identity_gate
@@ -199,6 +366,14 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(validate_contract([env], [ORG])["passed"], validate_contract([env], [ORG]))
         self.assertIn("Kari Nordmann", env["summary"])
         self.assertIn("NOK 52.0 m", env["summary"])
+
+    def test_subsidiary_jobs_on_group_site_are_not_published(self):
+        profile = site_profile(pages=[{"url": "https://fjordbygg.no/karriere", "page_kind": "hiring", "content_sha256": "e" * 64,
+                                       "jobs": [{"title": "Tømrer Bergen, Fjordbygg AS", "url": "https://fjordbygg.no/ledige-stillinger/a", "method": "hiring_page_link"},
+                                                {"title": "Ingeniør Stavanger, Aeron AS", "url": "https://fjordbygg.no/ledige-stillinger/b", "method": "hiring_page_link"}],
+                                       "news": []}], org_numbers=[ORG])
+        env = self.envelope(profile)
+        self.assertEqual([c["value"]["title"] for c in env["claims"] if c["field"] == "job_posting"], ["Tømrer Bergen, Fjordbygg AS"])
 
     def test_latest_accounts_year_when_api_lists_oldest_first(self):
         profile = site_profile(pages=[], org_numbers=[ORG])
@@ -308,6 +483,20 @@ RUNNER_HARNESS = textwrap.dedent('''
     official.fetch_official_modules = fake_official
     website.fetch_website = fake_site
     dg.discover_website = lambda profile, **kw: (None, {{"strategy": "domain_guess_v1", "candidates": [], "requests": 0, "bytes": 0}})
+    import norway_company_agent.nav_jobs as nav_jobs
+
+    class FakeNav:
+        def __init__(self, **kw): self.meta = {{"status": "available"}}
+        def start(self): return self
+        def wait(self, timeout): return True
+        def jobs_for(self, companies, **kw):
+            assert "923609016" in companies
+            job = {{"title": "Anleggsleder", "url": "https://arbeidsplassen.nav.no/stillinger/stilling/u1", "location": "Bergen",
+                   "date_posted": "2026-10-01", "closing_date": "2026-10-30", "employer_name": "FJORDBYGG AS", "employer_orgnr": "923609016",
+                   "nav_uuid": "u1", "content_sha256": "5"*64, "retrieved_at": "2026-10-16T00:00:00Z"}}
+            return {{"923609016": {{"field": "nav_jobs", "status": "available", "value": {{"jobs": [job]}}}}}}
+
+    nav_jobs.NavJobs = FakeNav
     sys.argv = ["run"] + sys.argv[1:]
     runpy.run_path("{root}/scripts/run_competition_batch.py", run_name="__main__")
 ''')
@@ -334,6 +523,8 @@ class RunnerEndToEndTests(unittest.TestCase):
             by = {e["organisation_number"]: e for e in envs}
             self.assertEqual(by["923609016"]["sections"]["website"]["state"], "available")
             self.assertEqual(by["923609016"]["sections"]["hiring"]["state"], "available")
+            self.assertEqual(by["923609016"]["sections"]["hiring"]["count"], 2)  # careers page + NAV
+            self.assertIn("arbeidsplassen.nav.no", by["923609016"]["sections"]["hiring"]["sources"])
             self.assertEqual(by["923609016"]["sections"]["group"]["state"], "not_applicable")
             self.assertEqual(by["923609016"]["sections"]["leadership"]["state"], "failed")
             self.assertEqual(by["111111111"]["status"], "failed")
@@ -364,6 +555,22 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(unknowns, ["A verified company website: none found.",
                                     "Job postings: could not be tied to this exact company."])
         self.assertIn("Not found or not confirmed: a verified company website, job postings.", summary)
+
+
+    def test_summary_sentences_cite_evidence(self):
+        profile = site_profile(pages=[], org_numbers=[ORG])
+        from norway_company_agent.identity import apply_website_identity_gate
+
+        profile["evidence"]["website"] = apply_website_identity_gate(profile, profile["evidence"]["website"])["website"]
+        env = build_envelope(profile, run_id="t", started_at="a", completed_at="b")
+        citations = env["summary_citations"]
+        self.assertEqual(" ".join(c["sentence"] for c in citations), env["summary"])
+        evidence_ids = {e["id"] for e in env["evidence"]}
+        factual = [c for c in citations if not c["sentence"].startswith("Not found")]
+        self.assertTrue(factual)
+        for citation in factual:
+            self.assertTrue(citation["evidence_ids"], citation["sentence"])
+            self.assertTrue(set(citation["evidence_ids"]) <= evidence_ids)
 
 
 class PortabilityTests(unittest.TestCase):

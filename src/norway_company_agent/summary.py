@@ -35,25 +35,30 @@ def _claims(envelope: dict[str, Any], field: str) -> list[dict[str, Any]]:
     return [claim for claim in envelope.get("claims") or [] if claim.get("field") == field]
 
 
-def summarize(envelope: dict[str, Any]) -> tuple[str, list[str]]:
+def _keys(claims: list[dict[str, Any]]) -> list[str]:
+    return [c["claim_key"] for c in claims if c.get("claim_key")]
+
+
+def _sentences(envelope: dict[str, Any]) -> tuple[list[tuple[str, list[str]]], list[str]]:
+    """Summary sentences, each with the claim keys that support it, plus the list of unknowns."""
     identity = envelope.get("legal_identity") or {}
     sections = envelope.get("sections") or {}
     name = identity.get("name") or f"Organisation {envelope.get('organisation_number')}"
-    sentences: list[str] = []
+    sentences: list[tuple[str, list[str]]] = []
 
     # What it does.
     industry = (identity.get("industry") or {}).get("beskrivelse") if isinstance(identity.get("industry"), dict) else None
-    description = next((c["value"] for c in _claims(envelope, "company_description")), None)
+    description_claims = _claims(envelope, "company_description")
     form = identity.get("legal_form")
     what = f"{name}{f' ({form})' if form else ''} is registered in Norway"
     if industry:
         what += f" under the industry '{industry}'"
-    sentences.append(what + ".")
-    if description:
-        short = description.strip().split(". ")[0][:220].rstrip(".")
-        sentences.append(f"Its own website describes it as: \"{short}\".")
+    sentences.append((what + ".", _keys(_claims(envelope, "legal_name") + _claims(envelope, "industry"))))
+    if description_claims:
+        short = str(description_claims[0]["value"]).strip().split(". ")[0][:220].rstrip(".")
+        sentences.append((f"Its own website describes it as: \"{short}\".", _keys(description_claims[:1])))
     if identity.get("bankrupt") or identity.get("liquidating"):
-        sentences.append("The registry flags it as bankrupt or being wound up.")
+        sentences.append(("The registry flags it as bankrupt or being wound up.", _keys(_claims(envelope, "legal_name"))))
 
     # Where.
     address = identity.get("address") or {}
@@ -63,41 +68,43 @@ def summarize(envelope: dict[str, Any]) -> tuple[str, list[str]]:
         where = f"It is based in {str(city).title()}"
         if workplaces:
             where += f" and has {workplaces} registered workplace{'s' if workplaces != 1 else ''}"
-        sentences.append(where + ".")
+        sentences.append((where + ".", _keys(_claims(envelope, "business_address") + _claims(envelope, "workplace")[:3])))
 
     # Who leads it.
-    roles = [c["value"] for c in _claims(envelope, "leadership.role")]
-    roles.sort(key=lambda v: LEAD_ROLE_ORDER.index(v.get("role_code")) if v.get("role_code") in LEAD_ROLE_ORDER else 99)
-    people = [r for r in roles if not r.get("is_entity")][:2]
+    role_claims = [c for c in _claims(envelope, "leadership.role") if not (c.get("value") or {}).get("is_entity")]
+    role_claims.sort(key=lambda c: LEAD_ROLE_ORDER.index(c["value"].get("role_code")) if c["value"].get("role_code") in LEAD_ROLE_ORDER else 99)
+    people = role_claims[:2]
     if people:
-        sentences.append("Leadership on record: " + "; ".join(f"{p['name']} ({p.get('role') or 'role'})" for p in people) + ".")
+        sentences.append(("Leadership on record: " + "; ".join(f"{c['value']['name']} ({c['value'].get('role') or 'role'})" for c in people) + ".",
+                          _keys(people)))
 
     # Numbers.
     latest_year = (sections.get("annual_accounts") or {}).get("latest_period")
-    latest_by_metric: dict[str, Any] = {}
+    latest_by_metric: dict[str, dict[str, Any]] = {}
     for claim in envelope.get("claims") or []:
-        if claim["field"].startswith("financials.") and (claim["value"] or {}).get("year") == latest_year and isinstance(claim["value"], dict):
-            latest_by_metric.setdefault(claim["field"].split(".", 1)[1], claim["value"]["amount"])
-    if latest_by_metric:
-        parts = []
-        if "revenue" in latest_by_metric:
-            parts.append(f"revenue {_fmt_nok(latest_by_metric['revenue'])}")
-        if "annual_result" in latest_by_metric:
-            parts.append(f"annual result {_fmt_nok(latest_by_metric['annual_result'])}")
-        if "equity" in latest_by_metric:
-            parts.append(f"equity {_fmt_nok(latest_by_metric['equity'])}")
-        if parts:
-            sentences.append(f"Latest filed accounts ({latest_year}): " + ", ".join(parts) + ".")
+        if claim["field"].startswith("financials.") and isinstance(claim["value"], dict) and claim["value"].get("year") == latest_year:
+            latest_by_metric.setdefault(claim["field"].split(".", 1)[1], claim)
+    parts, used = [], []
+    for metric, label in (("revenue", "revenue"), ("annual_result", "annual result"), ("equity", "equity")):
+        if metric in latest_by_metric:
+            parts.append(f"{label} {_fmt_nok(latest_by_metric[metric]['value']['amount'])}")
+            used.append(latest_by_metric[metric])
+    if parts:
+        sentences.append((f"Latest filed accounts ({latest_year}): " + ", ".join(parts) + ".", _keys(used)))
 
     # Hiring and activity.
     jobs = (sections.get("hiring") or {}).get("count") or 0
     news = (sections.get("activity") or {}).get("count") or 0
     if jobs:
-        titles = [c["value"]["title"] for c in _claims(envelope, "job_posting")][:2]
-        sentences.append(f"It lists {jobs} job posting{'s' if jobs != 1 else ''} on its own channels, e.g. {', '.join(titles)}.")
+        job_claims = _claims(envelope, "job_posting")
+        sources = (sections.get("hiring") or {}).get("sources") or ["its own website"]
+        titles = [c["value"]["title"] for c in job_claims][:2]
+        sentences.append((f"It has {jobs} open job posting{'s' if jobs != 1 else ''} ({' and '.join(sources)}), e.g. {', '.join(titles)}.",
+                          _keys(job_claims[:3])))
     if news:
         latest_news = (sections.get("activity") or {}).get("latest")
-        sentences.append(f"Its site has {news} dated news item{'s' if news != 1 else ''}, the latest from {latest_news}.")
+        news_claims = sorted(_claims(envelope, "news_item"), key=lambda c: str((c.get("value") or {}).get("published")), reverse=True)
+        sentences.append((f"Its site has {news} dated news item{'s' if news != 1 else ''}, the latest from {latest_news}.", _keys(news_claims[:1])))
 
     # Changes.
     changes = envelope.get("changes") or []
@@ -105,7 +112,8 @@ def summarize(envelope: dict[str, Any]) -> tuple[str, list[str]]:
         kinds: dict[str, int] = {}
         for change in changes:
             kinds[change["type"]] = kinds.get(change["type"], 0) + 1
-        sentences.append("Since the last run: " + ", ".join(f"{n} {k.replace('_', ' ')}" for k, n in sorted(kinds.items())) + ".")
+        sentences.append(("Since the last run: " + ", ".join(f"{n} {k.replace('_', ' ')}" for k, n in sorted(kinds.items())) + ".",
+                          [c["claim_key"] for c in changes if c.get("claim_key")][:5]))
 
     # Unknowns.
     unknowns = []
@@ -119,5 +127,25 @@ def summarize(envelope: dict[str, Any]) -> tuple[str, list[str]]:
         missing_labels.append(label)
         unknowns.append(f"{label[0].upper()}{label[1:]}: {reason}.")
     if unknowns:
-        sentences.append("Not found or not confirmed: " + ", ".join(missing_labels) + ".")
-    return " ".join(sentences), unknowns
+        sentences.append(("Not found or not confirmed: " + ", ".join(missing_labels) + ".", []))
+    return sentences, unknowns
+
+
+def summarize(envelope: dict[str, Any]) -> tuple[str, list[str]]:
+    sentences, unknowns = _sentences(envelope)
+    return " ".join(text for text, _ in sentences), unknowns
+
+
+def summary_citations(envelope: dict[str, Any]) -> list[dict[str, Any]]:
+    """Each summary sentence with the claims and evidence that support it."""
+    sentences, _ = _sentences(envelope)
+    by_key = {c.get("claim_key"): c for c in envelope.get("claims") or []}
+    out = []
+    for text, keys in sentences:
+        evidence_ids: list[str] = []
+        for key in keys:
+            for ev in (by_key.get(key) or {}).get("evidence_ids") or []:
+                if ev not in evidence_ids:
+                    evidence_ids.append(ev)
+        out.append({"sentence": text, "claim_keys": [k for k in keys if k in by_key], "evidence_ids": evidence_ids})
+    return out

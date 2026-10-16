@@ -9,3 +9,5 @@ out/
 *.csv
 smoke-companies.jsonl
 *.log
+sample*.jsonl
+/demo-companies.txt

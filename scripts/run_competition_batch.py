@@ -27,9 +27,10 @@ from norway_company_agent.contract import build_envelope, failed_envelope, valid
 from norway_company_agent.domain_guess import discover_website, no_site_found_evidence  # noqa: E402
 from norway_company_agent.evidence import utc_now  # noqa: E402
 from norway_company_agent.identity import apply_website_identity_gate  # noqa: E402
+from norway_company_agent.nav_jobs import NavJobs  # noqa: E402
 from norway_company_agent.official import accounting_obligation_assessment, fetch_official_modules  # noqa: E402
 from norway_company_agent.refresh_contract import apply_refresh, load_previous  # noqa: E402
-from norway_company_agent.summary import summarize  # noqa: E402
+from norway_company_agent.summary import summarize, summary_citations  # noqa: E402
 from norway_company_agent.website import fetch_website  # noqa: E402
 
 DEFAULT_MODULES = "registry,registry_live,financials,roles,group,locations,website"
@@ -134,6 +135,7 @@ def main() -> None:
                         help="Stop starting work and write all envelopes after this many seconds")
     parser.add_argument("--company-budget-seconds", type=float, default=float(os.environ.get("SIGNALPOST_COMPANY_BUDGET_SECONDS", "75")))
     parser.add_argument("--no-discovery", action="store_true", help="Disable website discovery by domain guessing")
+    parser.add_argument("--no-nav-jobs", action="store_true", help="Disable job postings from NAV's job vacancy feed")
     parser.add_argument("--modules", default=DEFAULT_MODULES)
     args = parser.parse_args()
 
@@ -145,6 +147,7 @@ def main() -> None:
     valid = [row["organisation_number"] for row in rows if row["valid"]]
     bulk, registry_meta = load_bulk_profiles(args.bulk, valid)
     previous = load_previous(args.previous)
+    nav = None if args.no_nav_jobs else NavJobs(time_cap_seconds=max(60.0, min(900.0, args.deadline_seconds * 0.4))).start()
 
     results: dict[str, dict] = {}
     profiles: dict[str, dict] = {}
@@ -188,6 +191,39 @@ def main() -> None:
                                        stage="deadline", message="Global run deadline reached before this company finished")
     pool.shutdown(wait=False, cancel_futures=True)
 
+    # Job postings from NAV's feed (loaded in the background), verified by organisation number.
+    nav_meta = None
+    if nav is not None:
+        reserve = 45.0  # time kept back for refresh, validation and writing files
+        nav.wait(deadline - time.monotonic() - reserve - 60)
+        companies = {}
+        for org, profile in profiles.items():
+            if results.get(org, {}).get("status") == "failed":
+                continue
+            name = (results[org].get("legal_identity") or {}).get("name") or profile.get("name")
+            locations = ((profile.get("evidence", {}).get("locations") or {}).get("value") or {}).get("locations") or []
+            subunits = {str(item.get("organisation_number")) for item in locations if item.get("organisation_number")}
+            companies[org] = (name, subunits)
+        try:
+            matched = nav.jobs_for(companies, budget_seconds=max(0.0, deadline - time.monotonic() - reserve))
+        except Exception as exc:
+            matched = {}
+            nav.meta["note"] = f"{type(exc).__name__}: {exc}"[:200]
+        for org, record in matched.items():
+            try:
+                profiles[org]["evidence"]["nav_jobs"] = record
+                rebuilt = build_envelope(profiles[org], run_id=args.run_id, started_at=started_at, completed_at=finish_time(),
+                                         runtime_ms=profiles[org].get("runtime_ms"))
+                rebuilt["operations"]["requests"] += len(record["value"]["jobs"])
+                results[org] = rebuilt
+            except Exception as exc:
+                results[org].setdefault("errors", []).append({"stage": "nav_jobs", "message": f"{type(exc).__name__}: {exc}"[:300]})
+        nav_meta = nav.meta
+        if nav.meta.get("status") not in {"available", "partial"}:
+            for org, envelope in results.items():
+                if envelope.get("status") != "failed" and "hiring" in envelope.get("sections", {}):
+                    envelope["sections"]["hiring"]["nav_feed"] = "unavailable"
+
     completed_at = utc_now()
     envelopes = []
     for org in order:
@@ -199,6 +235,7 @@ def main() -> None:
             envelope = apply_refresh(envelope, previous.get(org))
             if envelope["status"] != "failed":
                 envelope["summary"], envelope["unknowns"] = summarize(envelope)
+                envelope["summary_citations"] = summary_citations(envelope)
         except Exception as exc:
             envelope.setdefault("errors", []).append({"stage": "refresh", "message": f"{type(exc).__name__}: {exc}"[:300]})
         envelopes.append(envelope)
@@ -234,7 +271,9 @@ def main() -> None:
         "companies_with_section_available": coverage,
         "claims_by_field": dict(sorted(claim_counts.items())),
         "websites_found_by_domain_guess": sum(1 for e in envelopes if (e["sections"].get("website") or {}).get("found_by") == "domain_guess"),
+        "websites_found_by_email_domain": sum(1 for e in envelopes if (e["sections"].get("website") or {}).get("found_by") == "email_domain"),
         "changes": sum(len(e.get("changes") or []) for e in envelopes),
+        "nav_jobs": nav_meta,
         "registry": registry_meta,
         "operations": {
             "requests": sum((e.get("operations") or {}).get("requests") or 0 for e in envelopes),

@@ -31,7 +31,7 @@ body{font:15px/1.5 var(--sans)}a{color:var(--link)}button,select,input{font:inhe
 .stat{padding:12px 14px;border-left:1px solid var(--line)}.stat:first-child{border-left:0}
 .stat span{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .stat b{display:block;font:700 18px/1.25 var(--serif);margin-top:2px}.stat em{font-style:normal;font-size:12px;color:var(--muted)}
-.grid{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start}
+.grid{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
 .dir{background:var(--panel);border:1px solid var(--line);border-radius:12px;position:sticky;top:76px;max-height:calc(100vh - 92px);display:flex;flex-direction:column}
 .dir-h{padding:14px 14px 10px;border-bottom:1px solid var(--line)}
 .kicker{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
@@ -89,13 +89,30 @@ ul.unk{margin:6px 0 0;padding-left:18px;font-size:13.5px;color:var(--muted)}
 details.ev{margin-top:10px}details.ev summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--link)}
 .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;overflow-wrap:anywhere}
 .chg{border-left:3px solid var(--warn);padding:6px 10px;background:var(--warn-soft);border-radius:0 8px 8px 0;margin:6px 0;font-size:13px}
-.foot{font-size:12px;color:var(--muted);text-align:center;padding:18px}
+.foot{font-size:12px;color:var(--muted);text-align:center;padding:18px 18px 80px}
+.row{display:flex;border-bottom:1px solid var(--line)}.row .item{border-bottom:0;flex:1;min-width:0;width:auto;padding-right:8px}.row .item>span:first-child{min-width:0;overflow:hidden}.row .pill{flex:none}
+.cmpb{border:0;border-left:1px solid var(--line);background:none;cursor:pointer;color:var(--muted);font-size:10.5px;font-weight:700;padding:0 4px;width:68px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-transform:uppercase;letter-spacing:.04em}
+.cmpb .box{width:16px;height:16px;border:1.5px solid var(--muted);border-radius:4px;display:grid;place-items:center;font-size:12px;line-height:1;color:#fff}
+.cmpb[aria-pressed="true"] .box{background:var(--accent);border-color:var(--accent)}.cmpb[aria-pressed="true"]{color:var(--accent);background:var(--accent-soft)}
+.cmpb:hover{background:var(--soft);color:var(--ink)}.cmpb:hover .box{border-color:var(--ink)}
+.hint{font-size:12px;color:var(--muted);margin:8px 0 0;display:flex;gap:6px;align-items:center}
+.addcmp{margin-top:8px;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12.5px;font-weight:600}
+.addcmp[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.tray{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:9;background:var(--ink);color:var(--bg);border-radius:12px;padding:8px 8px 8px 14px;
+ display:none;gap:10px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100% - 24px);font-size:13px}
+.tray.on{display:flex}.tray span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tray button{border:0;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:700;white-space:nowrap}.tray .go{background:var(--accent);color:#fff}
+.tray .go:disabled{opacity:.5;cursor:default}.tray .clr{background:transparent;color:var(--bg);opacity:.8}
+.cmp th{background:var(--panel);min-width:180px;font:700 15px var(--serif);text-transform:none;letter-spacing:0;color:var(--ink);vertical-align:bottom}
+.cmp td:first-child,.cmp th:first-child{position:sticky;left:0;background:var(--panel);min-width:140px;color:var(--muted);font-size:12px;z-index:1}
+.cmp td{min-width:170px}.cmp .x{display:inline-block;font:600 11.5px var(--sans);color:var(--link);cursor:pointer;background:none;border:0;padding:0;margin:4px 10px 0 0}
 @media (max-width:1000px){.stats{grid-template-columns:repeat(3,1fr)}.stat:nth-child(4){border-left:0}.stat:nth-child(n+4){border-top:1px solid var(--line)}}
 @media (max-width:820px){
  .grid{grid-template-columns:1fr}.dir{position:static;max-height:none}.list{max-height:none}
  body.show-detail .dir{display:none}body:not(.show-detail) .detail{display:none}.back{display:inline-block}
  .hero{grid-template-columns:1fr}.meter{text-align:left}.bars{justify-content:flex-start}.hero h1{font-size:26px}
  .kpis{grid-template-columns:repeat(2,1fr)}.kpi:nth-child(3n){border-right:1px solid var(--line)}.kpi:nth-child(2n){border-right:0}
+ .cmp td:first-child,.cmp th:first-child{min-width:104px}.cmp td,.cmp th{min-width:140px}
  .top-in{flex-wrap:wrap;gap:10px}.search{order:3;flex-basis:100%}.brand{flex:1}
  .cards,.kv{grid-template-columns:1fr}.tabs{top:112px}.dir{top:auto}.brand small{display:none}.search kbd{display:none}section{padding:16px}
  .stats{grid-template-columns:repeat(2,1fr)}.stat{border-left:0;border-top:1px solid var(--line)}.stat:nth-child(-n+2){border-top:0}.stat:nth-child(2n){border-left:1px solid var(--line)}
@@ -114,12 +131,14 @@ details.ev{margin-top:10px}details.ev summary{cursor:pointer;font-size:13px;font
     <p>Every fact links to the page or register it came from.</p>
     <div class="ctl"><select id="sort" aria-label="Sort"><option value="data">Most data found</option><option value="input">Input order</option><option value="name">Name A–Z</option><option value="revenue">Highest revenue</option></select>
     <select id="filter" aria-label="Filter"><option value="">All companies</option><option value="website">Verified website</option><option value="hiring">Hiring</option><option value="activity">Dated activity</option><option value="profiles">Social profiles</option><option value="changes">Changed since last run</option><option value="ambiguous">Withheld (ambiguous)</option><option value="failed">Failed</option></select></div>
+    <p class="hint">Tick <b>Compare</b> on 2–4 companies to see them side by side.</p>
    </div>
    <div class="list" id="list" role="listbox" aria-label="Companies"></div>
   </aside>
   <main class="detail" id="detail" aria-live="polite"></main>
  </div>
  <div class="foot" id="foot"></div>
+ <div class="tray" id="tray" role="region" aria-label="Comparison"><span></span><button class="go" type="button">Compare</button><button class="clr" type="button">Clear</button></div>
 </div>
 <script id="data" type="application/json">__DATA__</script>
 <script>
@@ -134,7 +153,8 @@ const AREAS=[['annual_accounts','Annual accounts'],['leadership','Leadership'],[
 const STATE_TXT={available:'Included',not_available:'Not found',not_applicable:'Not applicable',ambiguous:'Withheld — company match not certain',blocked:'Blocked by source',failed:'Source failed this run'};
 const METRICS=[['revenue','Revenue'],['operating_result','Operating result'],['profit_before_tax','Profit before tax'],['annual_result','Annual result'],['assets','Total assets'],['equity','Equity'],['debt','Debt']];
 const VERIFY={org_number_on_site:'Our organisation number is shown on the site',legal_name_on_registry_linked_site:'Site is linked from the official register and shows the full legal name',legal_name_and_address_on_site:'Site shows the full legal name and the registered address'};
-const FOUND={registry_link:'Linked in the official register',domain_guess:'Found by checking domains matching the legal name'};
+const FOUND={registry_link:'Linked in the official register',email_domain:'Domain of the email address in the official register',domain_guess:'Found by checking domains matching the legal name'};
+const CMP=[];const MAXCMP=4;
 
 function prep(r){
  const ev=Object.fromEntries((r.evidence||[]).map(e=>[e.id,e]));const by={};
@@ -190,9 +210,10 @@ function list(){
  document.getElementById('count').textContent=rows.length===P.length?P.length:`${rows.length} of ${P.length}`;
  const show=rows.slice(0,400);
  document.getElementById('list').innerHTML=show.map(p=>{const cls=p.r.status==='failed'?'bad':p.score>=4?'hi':p.score>=2?'mid':'';
-  return `<button class="item${sel===p?' on':''}" data-org="${E(p.r.organisation_number)}" role="option" aria-selected="${sel===p}"><span><b>${E(p.li.name||p.r.organisation_number)}</b>
+  const inC=CMP.includes(p.r.organisation_number);
+  return `<div class="row"><button class="item${sel===p?' on':''}" data-org="${E(p.r.organisation_number)}" role="option" aria-selected="${sel===p}"><span><b>${E(p.li.name||p.r.organisation_number)}</b>
   <small>${E([p.addr.poststed||p.addr.kommune,(p.li.industry||{}).beskrivelse].filter(Boolean).join(' · ')||p.r.organisation_number)}</small></span>
-  <span class="pill ${cls}">${p.r.status==='failed'?'failed':p.score+'/5 data'}</span></button>`}).join('')
+  <span class="pill ${cls}">${p.r.status==='failed'?'failed':p.score+'/5 data'}</span></button><button class="cmpb" type="button" data-cmp="${E(p.r.organisation_number)}" aria-pressed="${inC}" title="Tick to compare this company side by side" aria-label="Compare ${E(p.li.name||p.r.organisation_number)}"><span class="box">${inC?'✓':''}</span>Compare</button></div>`}).join('')
   +(rows.length>show.length?`<div class="more">Showing 400 of ${rows.length}. Search to narrow down.</div>`:'')+(rows.length?'':'<div class="more">No companies match.</div>');
  return rows;
 }
@@ -223,7 +244,8 @@ function detail(p){
  <div class="sub">Organisation ${E(r.organisation_number)} · ${E(li.legal_form||'')}${p.addr.poststed?' · '+E(p.addr.poststed):''}${brand&&brand.value&&brand.value!==li.name?' · public name “'+E(brand.value)+'”':''}</div>
  ${descr?`<p class="desc">${E(descr.value)} ${srcLink(p,descr)}</p>`:''}
  <div class="chips">${chips.map(([c,t])=>`<span class="chip ${c}">${E(t)}</span>`).join('')}</div>
- <div class="sub">${done?'Checked '+E(day(done))+' · ':''}Hover or open any “source” link to verify a fact</div></div>
+ <div class="sub">${done?'Checked '+E(day(done))+' · ':''}Hover or open any “source” link to verify a fact</div>
+ <button class="addcmp" type="button" data-cmp="${E(r.organisation_number)}" aria-pressed="${CMP.includes(r.organisation_number)}">${CMP.includes(r.organisation_number)?'✓ In comparison':'+ Add to compare'}</button></div>
  <div class="meter"><b>${p.score}</b> <span>of 5 data areas</span><p>${p.score===5?'Data found in all five areas':p.score?'Data found in '+p.score+' area'+(p.score>1?'s':''):'No data found'}</p>
  <div class="bars">${AREAS.map(([k,l])=>`<i class="${p.area[k]==='available'?'on':''}" title="${E(l)}: ${E(STATE_TXT[p.area[k]]||'Not found')}"></i>`).join('')}</div></div></div>
  <nav class="tabs" aria-label="Sections"><a href="#s-overview">Overview</a><a href="#s-fin">Financials</a><a href="#s-lead">Leadership</a><a href="#s-loc">Locations</a><a href="#s-hire">Hiring & activity</a><a href="#s-run">Run evidence</a><a href="#s-src">Sources found</a></nav>
@@ -231,7 +253,8 @@ function detail(p){
  ${kpi('Employees in register',emp?NB.format(emp.value):null,'Official company record')}${kpi('Registered workplaces',places.length||null,'Official subunits')}${kpi('Job postings found',(s.hiring||{}).state==='available'?jobs.length:null,site?'From the company’s own site':'No verified site to check')}</div>`;
 
  h+=`<section id="s-overview"><div class="sh"><h3>Company overview</h3><span>Written only from the facts below</span></div>
- <p class="summary">${E(r.summary)}</p>
+ <p class="summary">${(r.summary_citations||[]).length?r.summary_citations.map(x=>{const e=p.ev[(x.evidence_ids||[])[0]];const h=e&&U(e.source_url);
+  return E(x.sentence)+(h?` <a class="src" href="${E(h)}" target="_blank" rel="noopener noreferrer" title="${E((x.evidence_ids||[]).length+' supporting source'+((x.evidence_ids||[]).length>1?'s':'')+' · '+(e.source_class||'')+' · retrieved '+day(e.retrieved_at))}">source${(x.evidence_ids||[]).length>1?'s':''}</a>`:'')}).join(' '):E(r.summary)}</p>
  ${(r.changes||[]).length?r.changes.slice(0,12).map(c=>`<div class="chg"><b>${E(String(c.type).replace(/_/g,' '))}</b> · ${E(c.claim_key||'')}</div>`).join(''):''}
  ${(r.unknowns||[]).length?`<b style="font-size:13px">Not found or not confirmed</b><ul class="unk">${r.unknowns.map(u=>`<li>${E(u)}</li>`).join('')}</ul>`:''}
  <div class="kv" style="margin-top:14px">
@@ -256,9 +279,9 @@ function detail(p){
  h+=`<section id="s-loc"><div class="sh"><h3>Locations</h3><span>Registered workplaces</span></div>${places.length?`<div class="cards">${places.map(c=>{const a=c.value.address||{};
   return `<div class="card"><b>${E(c.value.name)}</b><small>${E([(a.adresse||[]).join(', '),[a.postnummer,a.poststed].filter(Boolean).join(' ')].filter(Boolean).join(', '))} ${srcLink(p,c)}</small></div>`}).join('')}</div>`:empty((s.workplaces||{}).state,(s.workplaces||{}).note)}</section>`;
 
- h+=`<section id="s-hire"><div class="sh"><h3>Hiring & public activity</h3><span>Company-owned pages, dated items only</span></div>
+ h+=`<section id="s-hire"><div class="sh"><h3>Hiring & public activity</h3><span>Company pages and NAV's job board · dated items only</span></div>
  <b style="font-size:14px">Job postings</b>${jobs.length?`<ul class="feed">${jobs.map(c=>{const v=c.value;return `<li>${v.date_posted?`<span class="date">${E(v.date_posted)}</span>`:''}<b>${A(v.url,v.title)}</b> ${srcLink(p,c)}
-  <small>${E([v.location,v.closing_date?'closes '+v.closing_date:'',v.hiring_organization].filter(Boolean).join(' · '))}</small></li>`}).join('')}</ul>`:empty((s.hiring||{}).state,(s.hiring||{}).note)}
+  <small>${E([v.location,v.closing_date?'closes '+v.closing_date:'',v.hiring_organization,v.source?'via '+v.source+(v.employer_orgnr?' · employer org.nr '+v.employer_orgnr:''):'from the company website'].filter(Boolean).join(' · '))}</small></li>`}).join('')}</ul>`:empty((s.hiring||{}).state,(s.hiring||{}).note)}
  <b style="font-size:14px;display:block;margin-top:16px">Dated updates</b>${news.length?`<ul class="feed">${news.map(c=>`<li><span class="date">${E(c.value.published)}</span><b>${A(c.value.url,c.value.title)}</b> ${srcLink(p,c)}</li>`).join('')}</ul>`:empty((s.activity||{}).state,(s.activity||{}).note)}</section>`;
 
  const w=s.website||{},att=r.attempts||[],ops=r.operations||{},webEv=site?p.ev[(site.evidence_ids||[])[0]]:null;
@@ -287,9 +310,46 @@ function detail(p){
  document.getElementById('back').onclick=()=>{document.body.classList.remove('show-detail');history.replaceState(null,'',location.pathname);window.scrollTo(0,0)};
 }
 
+function syncCmpButtons(){document.querySelectorAll('[data-cmp]').forEach(b=>{if(b.classList.contains('x'))return;const on=CMP.includes(b.dataset.cmp);b.setAttribute('aria-pressed',on);
+  if(b.classList.contains('addcmp'))b.textContent=on?'✓ In comparison':'+ Add to compare';else b.querySelector('.box').textContent=on?'✓':''})}
+function toggleCmp(org){const i=CMP.indexOf(org);if(i>=0)CMP.splice(i,1);else{if(CMP.length>=MAXCMP)CMP.shift();CMP.push(org)}syncCmpButtons();tray()}
+function tray(){const t=document.getElementById('tray');const names=CMP.map(o=>{const p=P.find(x=>x.r.organisation_number===o);return p?(p.li.name||o):o});
+ t.classList.toggle('on',CMP.length>0);t.querySelector('span').textContent=CMP.length===1?`${names[0]} ticked — tick one more company to compare`:`${names.join(' · ')}`;
+ const go=t.querySelector('.go');go.disabled=CMP.length<2;go.textContent=CMP.length<2?'Compare':`Compare ${CMP.length} side by side`}
+function compareView(){const ps=CMP.map(o=>P.find(x=>x.r.organisation_number===o)).filter(Boolean);if(ps.length<2)return;sel=null;
+ document.querySelectorAll('.item').forEach(b=>b.classList.remove('on'));
+ const na=t=>`<span style="color:var(--na)">${E(t||'Not found')}</span>`;
+ const cell=(p,c,txt)=>c?`${txt}${srcLink(p,c)}`:na();
+ const fin=(p,m)=>{const y=p.years[0];const c=y&&p.fin[y][m];return c?`${money(c.value.amount)} <small class="sub">${E(y)}</small>${srcLink(p,c)}`:na()};
+ const first=(p,f)=>(p.by[f]||[])[0];
+ const role=(p,codes)=>{const c=(p.by['leadership.role']||[]).find(x=>codes.includes(x.value.role_code));return cell(p,c,c?E(c.value.name):'')};
+ const cnt=(p,f,sec)=>{const n=(p.by[f]||[]).length;return n?`${n}`:na(STATE_TXT[(p.s[sec]||{}).state])};
+ const rows=[
+  ['Organisation number',p=>E(p.r.organisation_number)],['Legal form',p=>E(p.li.legal_form||'')],['Industry',p=>E((p.li.industry||{}).beskrivelse||'Not registered')],
+  ['Place',p=>E(p.addr.poststed||p.addr.kommune||'')],['Data areas found',p=>`${p.score} of 5`],
+  ['Latest revenue',p=>fin(p,'revenue')],['Operating result',p=>fin(p,'operating_result')],['Annual result',p=>fin(p,'annual_result')],['Equity',p=>fin(p,'equity')],
+  ['Employees in register',p=>{const c=first(p,'registered_employees');return cell(p,c,c?NB.format(c.value):'')}],
+  ['Chief executive',p=>role(p,['DAGL'])],['Chair of the board',p=>role(p,['LEDE'])],
+  ['Registered workplaces',p=>cnt(p,'workplace','workplaces')],
+  ['Official website',p=>{const c=first(p,'official_website');const h=c&&U(c.value);return h?A(h,new URL(h).hostname)+srcLink(p,c):na(STATE_TXT[(p.s.website||{}).state])}],
+  ['Social profiles',p=>{const cs=p.by.company_profile||[];return cs.length?cs.map(c=>A(c.value.url,c.value.platform)).join(', '):na()}],
+  ['Job postings',p=>cnt(p,'job_posting','hiring')],['Dated updates',p=>cnt(p,'news_item','activity')],
+  ['Changes since last run',p=>String((p.r.changes||[]).length)]];
+ const h=`<button class="back" type="button" id="back">← All companies</button><div class="hero" style="grid-template-columns:1fr"><div><div class="kicker">Side-by-side comparison</div><h1>Compare ${ps.length} companies</h1>
+  <div class="sub">Every figure links to its source. “Not found” means the source was checked and had nothing for this company.</div></div></div>
+  <section><div class="tw"><table class="cmp"><thead><tr><th></th>${ps.map(p=>`<th>${E(p.li.name||p.r.organisation_number)}<br><button class="x" type="button" data-open="${E(p.r.organisation_number)}">Open profile</button><button class="x" type="button" data-cmp="${E(p.r.organisation_number)}">Remove</button></th>`).join('')}</tr></thead>
+  <tbody>${rows.map(([l,f])=>`<tr><td>${l}</td>${ps.map(p=>`<td>${f(p)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+ document.getElementById('detail').innerHTML=h;
+ document.getElementById('back').onclick=()=>{document.body.classList.remove('show-detail');window.scrollTo(0,0)};
+ document.body.classList.add('show-detail');history.replaceState(null,'','#compare='+CMP.join(','));
+ if(window.matchMedia('(max-width:820px)').matches)window.scrollTo(0,0);else document.getElementById('detail').scrollIntoView({block:'start'})}
+document.addEventListener('click',ev=>{const c=ev.target.closest('[data-cmp]');
+ if(c){ev.stopPropagation();ev.preventDefault();toggleCmp(c.dataset.cmp);
+  if(c.classList.contains('x')){if(CMP.length>=2)compareView();else if(CMP.length)choose(P.find(x=>x.r.organisation_number===CMP[0]),true)}return}
+ const o=ev.target.closest('[data-open]');if(o){const p=P.find(x=>x.r.organisation_number===o.dataset.open);if(p)choose(p,true)}},true);
 function choose(p,push){sel=p;detail(p);document.querySelectorAll('.item').forEach(b=>{const on=b.dataset.org===p.r.organisation_number;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
  if(push)history.replaceState(null,'','#org='+p.r.organisation_number)}
-document.getElementById('list').addEventListener('click',ev=>{const b=ev.target.closest('.item');if(!b)return;const p=P.find(x=>x.r.organisation_number===b.dataset.org);
+document.getElementById('list').addEventListener('click',ev=>{if(ev.target.closest('[data-cmp]'))return;const b=ev.target.closest('.item');if(!b)return;const p=P.find(x=>x.r.organisation_number===b.dataset.org);
  if(p){choose(p,true);document.body.classList.add('show-detail');if(window.matchMedia('(max-width:820px)').matches)window.scrollTo(0,0);else document.getElementById('detail').scrollIntoView({block:'start'})}});
 ['q','sort','filter'].forEach(id=>document.getElementById(id).addEventListener(id==='q'?'input':'change',()=>{list()}));
 document.addEventListener('keydown',e=>{if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){e.preventDefault();document.getElementById('q').focus()}});
@@ -298,15 +358,18 @@ if(theme)document.documentElement.dataset.theme=theme;
 themeBtn.onclick=()=>{const dark=document.documentElement.dataset.theme?document.documentElement.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
  const next=dark?'light':'dark';document.documentElement.dataset.theme=next;try{localStorage.setItem('sp-theme',next)}catch(e){}};
 stats();
+document.querySelector('#tray .go').onclick=compareView;
+document.querySelector('#tray .clr').onclick=()=>{CMP.splice(0);syncCmpButtons();tray()};
 addEventListener('hashchange',()=>{const h=location.hash.match(/org=(\d{9})/),t=h&&P.find(p=>p.r.organisation_number===h[1]);if(t&&t!==sel){choose(t,false);document.body.classList.add('show-detail')}});
 const m=location.hash.match(/org=(\d{9})/);const start=m&&P.find(p=>p.r.organisation_number===m[1]);
-list();if(start){choose(start,false);document.body.classList.add('show-detail')}else if(P.length){const first=document.querySelector('.item');choose(P.find(p=>p.r.organisation_number===first.dataset.org),false)}
+const mc=location.hash.match(/compare=([\d,]+)/);if(mc)mc[1].split(',').filter(o=>P.some(p=>p.r.organisation_number===o)).slice(0,MAXCMP).forEach(o=>CMP.push(o));
+list();tray();if(CMP.length>=2)compareView();else if(start){choose(start,false);document.body.classList.add('show-detail')}else if(P.length){const first=document.querySelector('.item');choose(P.find(p=>p.r.organisation_number===first.dataset.org),false)}
 </script></body></html>"""
 
 
 def write_html(path: Path, envelopes: list[dict[str, Any]], *, run_id: str) -> None:
     keys = ("organisation_number", "status", "run", "legal_identity", "public_brand", "sections", "claims", "evidence",
-            "summary", "unknowns", "refresh", "changes", "errors", "operations", "attempts")
+            "summary", "summary_citations", "unknowns", "refresh", "changes", "errors", "operations", "attempts")
     rows = [{k: e.get(k) for k in keys} for e in envelopes]
     data = json.dumps({"run_id": run_id, "rows": rows}, ensure_ascii=False, default=str).replace("</", "<\\/")
     path.parent.mkdir(parents=True, exist_ok=True)

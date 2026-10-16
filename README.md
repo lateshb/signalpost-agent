@@ -2,6 +2,10 @@
 
 Give it Norwegian organisation numbers. It returns one profile per company: legal identity, latest filed accounts, leadership, workplaces, verified website, social profiles, job postings and dated news, with a source for every fact. Facts that can't be tied to the exact company are left out and marked. Run it again with `--previous` and it reports what changed.
 
+It researches only the organisation numbers in the input file it is given at run time, and fetches everything live (registry APIs, company websites, NAV's job feed). Nothing is precomputed; `smoke/` is the output of a test run, not data the agent reads.
+
+Requirement-by-requirement check against the challenge page: [COMPLIANCE.md](COMPLIANCE.md).
+
 Plan and design: [PRD.md](PRD.md). Sources and licences: [LIMITATIONS.md](LIMITATIONS.md). Submission details and the 100-company smoke-test result: [SUBMISSION.md](SUBMISSION.md), [`smoke/`](smoke/).
 
 ## Run command (official)
@@ -29,9 +33,10 @@ Useful knobs (flags or environment variables):
 | `--deadline-seconds` | `SIGNALPOST_DEADLINE_SECONDS` | 3000 | Hard stop. Unfinished companies get a `failed` envelope and the file is written |
 | `--workers` | `SIGNALPOST_WORKERS` | 24 | Companies in parallel |
 | `--company-budget-seconds` | `SIGNALPOST_COMPANY_BUDGET_SECONDS` | 75 | Time per company for website crawling and discovery |
-| `--no-discovery` | | off | Skip website discovery by domain guessing |
+| `--no-discovery` | | off | Skip website discovery (registered email domain, then domains from the legal name) |
+| `--no-nav-jobs` | | off | Skip job postings from NAV's job vacancy feed |
 
-No API keys are needed. Third-party cost per batch: $0.
+No API keys are needed. Optional: `NAV_FEED_TOKEN` (a private token for NAV's job feed; without it the public token NAV publishes is used). Third-party cost per batch: $0.
 
 ## 100-company smoke test
 
@@ -71,10 +76,12 @@ uv run --with pytest pytest -q
 
 1. Registry snapshot row (or live registry) gives the identity anchor.
 2. Official APIs: live entity, annual accounts, roles, group, subunits.
-3. Website: the registry-linked site, or if there is none, a few domains guessed from the legal name (`fjordbygg.no`, `fjord-bygg.no`, `fjordbygg.com`). A guessed site is only used if it shows our org number, or the full legal name plus the registered address.
+3. Website: the registry-linked site. If there is none, or it does not verify: the domain of the email address registered in Brønnøysund (mailbox providers and shared service providers skipped), then a few domains built from the legal name (`fjordbygg.no`, `fjord-bygg.no`, `fjordbygg.com`). A discovered site is only used if it shows our org number, or the full legal name plus the registered address.
 4. Crawl of the verified site: homepage, sitemap, and up to 8 pages picked across about/contact, careers, news, people and locations. Robots.txt is respected.
 5. Extraction: JSON-LD JobPosting/Article first, then article meta, then careers-page and applicant-system links (Webcruiter, Jobbnorge, Teamtailor and others), then dated news links. Undated items are dropped.
-6. Contract adapter builds claims, evidence and section states; a plain summary is written from the claims only.
+6. Jobs from NAV (arbeidsplassen.nav.no): while companies are researched, a background thread reads NAV's official job vacancy feed (last 45 days, active ads only). A company's name only picks candidate ads; an ad is published only if NAV's own record names the employer by our organisation number or one of our registered subunits.
+7. Contract adapter builds claims, evidence and section states; a plain summary is written from the claims only.
+8. `--html` writes a one-file viewer: search, filters, sorting, a profile per company with a source link on every fact, side-by-side comparison of up to 4 companies, works on mobile and in dark mode.
 
 ## Older scripts
 
