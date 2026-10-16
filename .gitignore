@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+out/
+.venv/
+*.tmp
+.pytest_cache/
+# Downloaded inputs (large, fetched by the README commands)
+*.gz
+*.csv
+smoke-companies.jsonl
+*.log

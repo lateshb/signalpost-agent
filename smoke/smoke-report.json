@@ -1,0 +1,78 @@
+{
+  "run_id": "smoke-001",
+  "agent_version": "signalpost-agent-2026-10-16",
+  "started_at": "2026-10-16T08:44:34.843670Z",
+  "completed_at": "2026-10-16T08:46:07.398233Z",
+  "wall_seconds": 92.6,
+  "inputs": {
+    "unique": 100,
+    "valid": 100,
+    "invalid": [],
+    "duplicates": [],
+    "header_lines_skipped": 0
+  },
+  "emitted_envelopes": 100,
+  "status_counts": {
+    "available": 100
+  },
+  "timed_out": [],
+  "companies_with_section_available": {
+    "website": 6,
+    "company_profiles": 2,
+    "hiring": 0,
+    "activity": 2,
+    "annual_accounts": 100,
+    "leadership": 100,
+    "workplaces": 73
+  },
+  "claims_by_field": {
+    "business_address": 100,
+    "company_description": 6,
+    "company_profile": 6,
+    "financials.annual_result": 276,
+    "financials.assets": 276,
+    "financials.debt": 268,
+    "financials.equity": 274,
+    "financials.operating_result": 271,
+    "financials.profit_before_tax": 271,
+    "financials.revenue": 201,
+    "group.related_entity": 37,
+    "industry": 100,
+    "latest_submitted_accounts_year": 100,
+    "leadership.role": 384,
+    "legal_form": 100,
+    "legal_name": 100,
+    "news_item": 5,
+    "official_website": 6,
+    "public_brand": 2,
+    "registered_employees": 10,
+    "workplace": 76
+  },
+  "websites_found_by_domain_guess": 4,
+  "changes": 0,
+  "registry": {
+    "registry_snapshot_sha256": "3c893221798722bab5ba19ede17cff395cc790b0d18a097d66c1e29e082532ad",
+    "registry_rows_scanned": 1173971,
+    "requested": 100,
+    "selected": 100,
+    "missing": []
+  },
+  "operations": {
+    "requests": 846,
+    "p50_company_ms": 6641,
+    "p95_company_ms": 43125,
+    "third_party_cost_usd": 0
+  },
+  "validation": {
+    "passed": true,
+    "checks": {
+      "exact_expected_count": true,
+      "same_order_as_input": true,
+      "unique_organisation_numbers": true,
+      "all_claims_have_evidence": true,
+      "all_states_valid": true,
+      "no_null_financials": true
+    },
+    "problems": []
+  }
+}
