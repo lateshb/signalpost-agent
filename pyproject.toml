@@ -25,3 +25,5 @@ sentiment = [
 
 [tool.uv]
 package = false
+# jstyleson (via extruct) ships only as source; build it with a known-good setuptools so clean installs stay reproducible.
+build-constraint-dependencies = ["setuptools==80.9.0"]

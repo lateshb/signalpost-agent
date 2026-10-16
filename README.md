@@ -29,8 +29,14 @@ python -m venv .venv
 Activate it (`.venv\Scripts\activate` on Windows, `source .venv/bin/activate` on macOS/Linux), then:
 
 ```bash
-pip install -r requirements.txt
+pip install "setuptools==80.9.0" wheel
 ```
+
+```bash
+pip install --no-build-isolation -r requirements.txt
+```
+
+One dependency, `jstyleson`, ships only as source code; pinning the build tool keeps a clean install reproducible. The uv route pins it in `pyproject.toml`.
 
 Then run the commands below with `python` instead of `uv run python`. `requirements.txt` is exported from `uv.lock` with the same pinned versions.
 
