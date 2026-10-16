@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Signalpost batch runner: org numbers in, one contract envelope per company out.
 
-    uv run python scripts/run_competition_batch.py --organisations input.jsonl --bulk enheter.csv.gz \
-        --output out/envelopes.jsonl --report out/report.json --run-id day-1
+    python scripts/run_competition_batch.py INPUT_FILE
+
+writes out/envelopes.jsonl, out/report.json and out/report.html. Every path and option can be set with flags
+(--output, --report, --html, --run-id, --bulk, --previous, ...); see --help.
 
 Guarantees (see PRD.md):
 - exactly one envelope per unique input, in input order, even if a company crashes or the deadline hits
@@ -121,13 +123,14 @@ def research_company(org: str, bulk_profile: dict | None, modules: list[str], *,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Signalpost company research batch")
-    parser.add_argument("--organisations", required=True, help="JSON list, JSONL or text file of organisation numbers")
+    parser.add_argument("input_file", nargs="?", help="JSON list, JSONL or text file of organisation numbers (same as --organisations)")
+    parser.add_argument("--organisations", help="JSON list, JSONL or text file of organisation numbers")
     parser.add_argument("--bulk", help="Brreg entity snapshot (CSV or CSV.gz). Missing companies fall back to the live registry API")
-    parser.add_argument("--output", required=True, help="Envelope JSONL output")
-    parser.add_argument("--report", required=True, help="Run report JSON")
-    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--output", default="out/envelopes.jsonl", help="Envelope JSONL output (default: out/envelopes.jsonl)")
+    parser.add_argument("--report", default="out/report.json", help="Run report JSON (default: out/report.json)")
+    parser.add_argument("--run-id", help="Run identifier (default: run-<UTC timestamp>)")
     parser.add_argument("--previous", help="Previous envelope JSONL for refresh diffs (read only)")
-    parser.add_argument("--html", help="Optional HTML viewer output")
+    parser.add_argument("--html", default="out/report.html", help="HTML viewer output (default: out/report.html; pass an empty string to skip)")
     parser.add_argument("--profiles-output", help="Optional raw internal profiles JSONL (debugging)")
     parser.add_argument("--expected-count", type=int, help="Defaults to the number of unique inputs")
     parser.add_argument("--workers", type=int, default=int(os.environ.get("SIGNALPOST_WORKERS", "24")))
@@ -138,6 +141,11 @@ def main() -> None:
     parser.add_argument("--no-nav-jobs", action="store_true", help="Disable job postings from NAV's job vacancy feed")
     parser.add_argument("--modules", default=DEFAULT_MODULES)
     args = parser.parse_args()
+    args.organisations = args.organisations or args.input_file
+    if not args.organisations:
+        parser.error("give the input file: python scripts/run_competition_batch.py INPUT_FILE")
+    if not args.run_id:
+        args.run_id = "run-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     for stream in (sys.stdout, sys.stderr):  # Windows consoles may not encode Norwegian letters; never crash on a print
         try:
             stream.reconfigure(errors="backslashreplace")

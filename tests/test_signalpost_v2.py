@@ -573,6 +573,21 @@ class SummaryTests(unittest.TestCase):
             self.assertTrue(set(citation["evidence_ids"]) <= evidence_ids)
 
 
+class ShortCommandTests(unittest.TestCase):
+    def test_input_file_alone_writes_default_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            d = Path(directory)
+            (d / "harness.py").write_text(RUNNER_HARNESS.format(root=ROOT.as_posix()), encoding="utf-8")
+            (d / "in.txt").write_text("923609016\n", encoding="utf-8")
+            proc = subprocess.run([sys.executable, str(d / "harness.py"), "in.txt", "--deadline-seconds", "6"],
+                                  capture_output=True, text=True, timeout=60, cwd=d)
+            self.assertEqual(proc.returncode, 0, proc.stderr[-1500:])
+            for name in ("envelopes.jsonl", "report.json", "report.html"):
+                self.assertTrue((d / "out" / name).exists(), name)
+            report = json.loads((d / "out" / "report.json").read_text(encoding="utf-8"))
+            self.assertTrue(report["run_id"].startswith("run-"))
+
+
 class PortabilityTests(unittest.TestCase):
     def test_operations_imports_without_unix_resource_module(self) -> None:
         import importlib

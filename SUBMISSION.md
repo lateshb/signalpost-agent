@@ -2,15 +2,19 @@
 
 Everything Builderr asks for in the submission email, in one place.
 
-## Run command
+## Install step and run command
+
+Needs Python 3.11+ (Windows, macOS or Linux). In an empty virtual environment, from the repository folder:
 
 ```bash
-uv sync --frozen && uv run python scripts/run_competition_batch.py --organisations INPUT_FILE --bulk REGISTRY_SNAPSHOT --output out/envelopes.jsonl --report out/report.json --run-id RUN_ID --html out/report.html
+pip install -r requirements.txt
 ```
 
-Install steps for Windows, macOS and Linux (uv, or plain Python + `requirements.txt`): [README.md](README.md#install-any-pc).
+```bash
+python scripts/run_competition_batch.py INPUT_FILE
+```
 
-The agent researches only the organisation numbers in `INPUT_FILE`, live, at run time. `--bulk` is optional (identity anchor only; companies missing from it are looked up in the live registry). Time and parallelism can be set with `--deadline-seconds` (default 3000) and `--workers` (default 24); see [README.md](README.md). Exit code 0 when the output contract check passes.
+Writes `out/envelopes.jsonl` (exactly one result per unique input, in input order), `out/report.json` and `out/report.html`; exit code 0 when the contract check passes. The agent researches only the organisation numbers in `INPUT_FILE`, live, at run time. Optional: `--bulk REGISTRY_SNAPSHOT` (identity anchor; missing companies are looked up live), `--previous OLD_ENVELOPES.jsonl` (refresh diff), `--deadline-seconds N` (default 3000; set a little below the run's time budget). All dependencies install from prebuilt, pinned packages; nothing is compiled. With uv: `uv sync --frozen` then `uv run python scripts/run_competition_batch.py INPUT_FILE`.
 
 ## 100-company smoke test
 

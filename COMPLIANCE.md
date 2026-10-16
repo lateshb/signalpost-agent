@@ -37,8 +37,8 @@ Every requirement on https://builderr.ai/challenges/signalpost (and the linked b
 |---|---|
 | Agent picks its own companies | Reads only `--organisations` |
 | Handles one company at a time | Batch runner with `--workers` (default 24) |
-| No single command | One command in `README.md` / `SUBMISSION.md` |
-| Does not install on a clean machine | `uv.lock` pinned, `.python-version` 3.12; checked by cloning the exact commit into an empty folder, `uv sync --frozen`, tests, live run |
+| No single command | `python scripts/run_competition_batch.py INPUT_FILE` (`README.md`, `SUBMISSION.md`); `run.bat` / `run.sh` for one-click local runs |
+| Does not install on a clean machine | One install step, `pip install -r requirements.txt`, from prebuilt pinned packages (nothing compiled; one source-only dependency is vendored as a wheel). Checked by cloning the exact commit into a new folder, empty virtual environment, that install step, then the run command. `uv.lock` + `.python-version` also pinned for uv users |
 | Returns fewer results than inputs | Crashes, timeouts, invalid rows, duplicates and companies missing from the snapshot all still produce an envelope (end-to-end test) |
 | "You cannot use an LLM" | We chose not to: summaries are deterministic and built only from claims, so no model key is needed |
 

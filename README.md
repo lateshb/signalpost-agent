@@ -1,125 +1,143 @@
-# Signalpost agent
+# Signalpost Agent
 
-Give it Norwegian organisation numbers. It returns one profile per company: legal identity, latest filed accounts, leadership, workplaces, verified website, social profiles, job postings and dated news, with a source for every fact. Facts that can't be tied to the exact company are left out and marked. Run it again with `--previous` and it reports what changed.
+Research any Norwegian company from its organisation number — with a source for every fact.
 
-It researches only the organisation numbers in the input file it is given at run time, and fetches everything live (registry APIs, company websites, NAV's job feed). Nothing is precomputed; `smoke/` is the output of a test run, not data the agent reads.
+Give it a list of organisation numbers. For each company it returns one profile: what the company does, who leads it, where it operates, its latest filed accounts, whether it is hiring and what it has published recently. Every fact links to the page or register it came from, with the date it was retrieved. Anything it cannot tie to the exact company is left out and marked, never guessed. Run it again later and it reports what changed.
 
-Requirement-by-requirement check against the challenge page: [COMPLIANCE.md](COMPLIANCE.md).
+Built for the [Builderr Signalpost challenge](https://builderr.ai/challenges/signalpost).
 
-Plan and design: [PRD.md](PRD.md). Sources and licences: [LIMITATIONS.md](LIMITATIONS.md). Submission details and the 100-company smoke-test result: [SUBMISSION.md](SUBMISSION.md), [`smoke/`](smoke/).
+## What it finds
 
-## Install (any PC)
+- **Company record** — legal name, form, address, industry, registered employees (Brønnøysund register)
+- **Filed accounts** — revenue, results, assets, equity and debt per year, with the reporting period (Regnskapsregisteret)
+- **People and places** — board and management roles, registered workplaces, group relations
+- **Website and profiles** — the company's verified website and the social profiles it links to
+- **Hiring** — job postings from the company's own careers pages and from NAV's job board (matched by organisation number)
+- **Activity** — dated news and press items from the company's own site
+- **What changed** since the last run, and **what is unknown**
 
-Works on Windows, macOS and Linux. Needs internet access while running.
+No API keys, no paid services, no LLM. Third-party cost: $0.
 
-**Option A — uv (recommended; what the official run uses).** Install uv once:
+## Run it
 
-- Windows (PowerShell): `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
-- macOS / Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- Or with any existing Python: `pip install uv` (then use `python -m uv` if `uv` is not on your PATH)
+Needs [Python 3.11 or newer](https://www.python.org/downloads/) (on Windows, tick **Add python.exe to PATH** when installing).
 
-Open a new terminal, then in the repository folder run `uv sync --frozen`. uv downloads the pinned Python 3.12 and the exact dependency versions from `uv.lock`.
+1. **Get the code:** `git clone https://github.com/lateshb/signalpost-agent.git` — or **Code → Download ZIP** on GitHub and unzip it.
+2. **Start it:**
+   - Windows: double-click **`run.bat`** (or type `run.bat` in Command Prompt, `.un.bat` in PowerShell)
+   - macOS / Linux: `./run.sh`
+3. **Look at the results:** the results page opens in your browser when the run finishes.
 
-**Option B — plain Python and pip (no uv).** Python 3.11 or newer:
+The first run sets up its own environment and installs everything (about a minute). It then researches 11 example companies (about 5 minutes) — swap in your own list with `run.bat my-companies.txt` or `./run.sh my-companies.txt` (one organisation number per line).
 
-```bash
-python -m venv .venv
-```
+In the results page you can search, filter, tick **Compare** on 2–4 companies to see them side by side, and click any **source** link to check a fact.
 
-Activate it (`.venv\Scripts\activate` on Windows, `source .venv/bin/activate` on macOS/Linux), then:
+## For evaluators: install step and run command
 
-```bash
-pip install "setuptools==80.9.0" wheel
-```
-
-```bash
-pip install --no-build-isolation -r requirements.txt
-```
-
-One dependency, `jstyleson`, ships only as source code; pinning the build tool keeps a clean install reproducible. The uv route pins it in `pyproject.toml`.
-
-Then run the commands below with `python` instead of `uv run python`. `requirements.txt` is exported from `uv.lock` with the same pinned versions.
-
-## Run command (official)
+In an empty virtual environment, from the repository folder:
 
 ```bash
-uv sync --frozen
+pip install -r requirements.txt
 ```
 
 ```bash
-uv run python scripts/run_competition_batch.py --organisations INPUT_FILE --bulk REGISTRY_SNAPSHOT --output out/envelopes.jsonl --report out/report.json --run-id RUN_ID --html out/report.html
+python scripts/run_competition_batch.py INPUT_FILE
 ```
 
-Each command is one line so it pastes the same into Windows (cmd or PowerShell), macOS and Linux terminals.
+- `INPUT_FILE`: plain text (one organisation number per line), JSON list or JSONL (`{"organisation_number": "..."}`). Bad or duplicate rows never crash the run.
+- Writes `out/envelopes.jsonl` (exactly one result per unique input, in input order), `out/report.json` (run report and contract check) and `out/report.html` (results page). Exit code 0 when the contract check passes.
+- Everything is installed from prebuilt packages with pinned versions; nothing is compiled. Works with Python 3.11+ on Windows, macOS and Linux.
+- With uv instead of pip: `uv sync --frozen` then `uv run python scripts/run_competition_batch.py INPUT_FILE` (Python 3.12 and versions pinned in `uv.lock`).
 
-- `INPUT_FILE`: JSON list, JSONL (`{"organisation_number": "..."}`) or plain text, one number per line. Bad or duplicate rows never crash the run.
-- `REGISTRY_SNAPSHOT`: Brreg entity bulk CSV, gzipped or plain. Optional; companies missing from it are looked up in the live registry.
-- Output: one envelope per unique input, in input order. Exit code 0 when the contract check passes.
-- Refresh: add `--previous out/old-envelopes.jsonl`. The old file is only read.
+Useful options (all optional):
 
-Useful knobs (flags or environment variables):
+| Option | Default | What it does |
+|---|---|---|
+| `--bulk REGISTRY_SNAPSHOT` | none | Brreg bulk CSV (plain or gzipped) as identity anchor; companies missing from it are looked up live |
+| `--previous OLD_ENVELOPES.jsonl` | none | Refresh mode: report what changed since that run (the old file is only read) |
+| `--deadline-seconds N` | 3000 | Hard stop: unfinished companies get a `failed` result and all files are written before this |
+| `--workers N` | 24 | Companies researched in parallel |
+| `--output`, `--report`, `--html`, `--run-id` | `out/…`, `run-<time>` | Output paths and run name |
+| `--no-nav-jobs` | off | Skip NAV's job feed (about 4 minutes faster) |
+| `--no-discovery` | off | Only use the website listed in the register |
 
-| Flag | Env | Default | What it does |
-|---|---|---|---|
-| `--deadline-seconds` | `SIGNALPOST_DEADLINE_SECONDS` | 3000 | Hard stop. Unfinished companies get a `failed` envelope and the file is written |
-| `--workers` | `SIGNALPOST_WORKERS` | 24 | Companies in parallel |
-| `--company-budget-seconds` | `SIGNALPOST_COMPANY_BUDGET_SECONDS` | 75 | Time per company for website crawling and discovery |
-| `--no-discovery` | | off | Skip website discovery (registered email domain, then domains from the legal name) |
-| `--no-nav-jobs` | | off | Skip job postings from NAV's job vacancy feed |
+Optional environment variable: `NAV_FEED_TOKEN` (a private token for NAV's job feed; without it the public token NAV publishes is used).
 
-No API keys are needed. Optional: `NAV_FEED_TOKEN` (a private token for NAV's job feed; without it the public token NAV publishes is used). Third-party cost per batch: $0.
+## Results
 
-## 100-company smoke test
+| Run | Result |
+|---|---|
+| [100-company smoke test](smoke/) (random companies from the public list) | 100/100 results, contract check passed, no timeouts, $0 |
+| Refresh rerun of the same 100 | 0 false changes |
+| [Demo](demo/) on 11 companies with a public footprint | hiring for 5 (29 postings), dated news for 3 (23 items), every item checked by hand |
+| Clean install, exactly as Builderr checks | fresh clone, empty environment, one install step, run command: passes |
 
-`curl` ships with Windows 10+, macOS and Linux. The registry snapshot is optional (about 155 MB); without `--bulk` every company is looked up in the live registry instead.
+Details: [SUBMISSION.md](SUBMISSION.md). Requirement-by-requirement check against the challenge page: [COMPLIANCE.md](COMPLIANCE.md).
+
+## Quality bar
+
+- **The right company or nothing.** A website is published only if it shows the organisation number, or the full legal name (plus the registered address for sites we discovered ourselves). Parked domains, franchise brands, parent or sister companies are withheld as `ambiguous`.
+- **Every fact has evidence:** source URL, retrieval time, content hash, the supporting text, and the reporting period for financial figures.
+- **Missing is never zero.** A figure that is not in the filing is left out, not written as 0.
+- **Jobs are real postings.** NAV ads only when NAV's record names our organisation number or a registered subunit; site links only when they point at one posting. Career info pages, PDFs, login links and other companies' postings are not jobs.
+- **News has its own publication date.** Contact, service and index pages are not news; event dates and future dates are not publication dates.
+- **One result per input, always** — including companies that crash, time out or are missing from the snapshot.
+- **Refresh is honest.** Re-running the same data gives no changes; a source that fails keeps its last known values instead of looking like a change.
+
+## How it works
+
+1. **Identity:** the registry snapshot row, or the live register, anchors every company by organisation number.
+2. **Official data:** live entity record, annual accounts, roles, group relations and registered workplaces (Brønnøysund open APIs).
+3. **Website:** the site listed in the register; if there is none or it does not verify, the domain of the registered email address, then a few domains built from the legal name — each one must pass the identity gate.
+4. **Crawl:** homepage, sitemap and up to 8 pages across about/contact, careers (job listings first), news, people and locations. Robots.txt is respected.
+5. **Extract:** structured data (JSON-LD JobPosting/Article) first, then posting and news links with their own dates.
+6. **NAV jobs:** while companies are researched, a background thread reads NAV's official job vacancy feed (last 45 days, active ads); ads are matched by employer organisation number.
+7. **Profile:** claims, evidence and a section state for every area (`available`, `not_available`, `blocked`, `not_applicable`, `ambiguous`, `failed`), plus a plain summary where every sentence cites its sources.
+8. **Refresh:** with `--previous`, stable claim keys give typed changes (`new_job`, `closed_job`, `new_role`, …) with evidence for both sides.
+
+## Reproduce the 100-company smoke test
 
 ```bash
-curl -L "https://data.brreg.no/enhetsregisteret/api/enheter/lastned/csv" -o brreg-enheter.csv.gz
+python scripts/run_competition_batch.py smoke/smoke-companies.txt --output out/smoke-envelopes.jsonl --report out/smoke-report.json --html out/smoke-report.html
 ```
+
+To draw a fresh random sample from the public list of 411,160 companies:
 
 ```bash
 curl -L "https://builderr.ai/signalpost-company-universe-2025.jsonl.gz" -o signalpost-universe.jsonl.gz
 ```
 
 ```bash
-uv run python select_entry_batch.py --universe signalpost-universe.jsonl.gz --count 100 --output smoke-companies.jsonl
+python select_entry_batch.py --universe signalpost-universe.jsonl.gz --count 100 --output my-sample.jsonl
 ```
 
-```bash
-uv run python scripts/run_competition_batch.py --organisations smoke-companies.jsonl --bulk brreg-enheter.csv.gz --output out/smoke-envelopes.jsonl --report out/smoke-report.json --run-id smoke-001 --html out/smoke-report.html
-```
-
-To re-run the exact 100 companies in this repository's result, use `--organisations smoke/smoke-companies.txt`.
-
-Then check `out/smoke-report.json`: `emitted_envelopes` should be 100, `validation.passed` true, and `companies_with_section_available` shows coverage per section. Open `out/smoke-report.html` to browse the profiles and click through to sources.
-
-Refresh check (should report 0 changes for an unchanged snapshot, apart from real changes on live sites):
-
-```bash
-uv run python scripts/run_competition_batch.py --organisations smoke-companies.jsonl --bulk brreg-enheter.csv.gz --output out/smoke-envelopes-2.jsonl --report out/smoke-report-2.json --run-id smoke-002 --previous out/smoke-envelopes.jsonl
-```
+Then check `out/smoke-report.json`: `emitted_envelopes` is 100 and `validation.passed` is true.
 
 ## Tests
 
 ```bash
-uv run --with pytest pytest -q
+pip install pytest
 ```
 
-Without uv: `pip install pytest`, then `python -m pytest -q`. Checked on Windows with Python 3.11 (pip route) and 3.12 (uv route).
+```bash
+python -m pytest -q
+```
 
-`tests/test_signalpost_v2.py` covers the new parts: job and news extraction, org-number detection, the strict identity gate, domain guessing, the envelope contract, refresh (idempotent + carry-forward), tolerant input, and an end-to-end runner test with a crashing company, a company that hits the deadline, one missing from the snapshot and a bad input row.
+141 tests: extraction, identity gate, NAV matching, the result contract, refresh, tolerant input, and end-to-end runs with a crashing company, a deadline hit, a company missing from the snapshot and a bad input row.
 
-## How it works (short)
+## In this repository
 
-1. Registry snapshot row (or live registry) gives the identity anchor.
-2. Official APIs: live entity, annual accounts, roles, group, subunits.
-3. Website: the registry-linked site. If there is none, or it does not verify: the domain of the email address registered in Brønnøysund (mailbox providers and shared service providers skipped), then a few domains built from the legal name (`fjordbygg.no`, `fjord-bygg.no`, `fjordbygg.com`). A discovered site is only used if it shows our org number, or the full legal name plus the registered address.
-4. Crawl of the verified site: homepage, sitemap, and up to 8 pages picked across about/contact, careers, news, people and locations. Robots.txt is respected.
-5. Extraction: JSON-LD JobPosting/Article first, then article meta, then careers-page and applicant-system links (Webcruiter, Jobbnorge, Teamtailor and others), then dated news links. Undated items are dropped.
-6. Jobs from NAV (arbeidsplassen.nav.no): while companies are researched, a background thread reads NAV's official job vacancy feed (last 45 days, active ads only). A company's name only picks candidate ads; an ad is published only if NAV's own record names the employer by our organisation number or one of our registered subunits.
-7. Contract adapter builds claims, evidence and section states; a plain summary is written from the claims only.
-8. `--html` writes a one-file viewer: search, filters, sorting, a profile per company with a source link on every fact, side-by-side comparison of up to 4 companies, works on mobile and in dark mode.
+| Path | What it is |
+|---|---|
+| `run.bat`, `run.sh` | One-click runners (set up, install, run, open results) |
+| `scripts/run_competition_batch.py` | The agent's command |
+| `src/norway_company_agent/` | Research, identity gate, extraction, NAV jobs, contract, refresh, results page |
+| `smoke/`, `demo/` | Saved results of the live test runs (output only; the agent never reads them) |
+| `vendor/` | One prebuilt dependency (`jstyleson`, MIT) so installs never compile anything |
+| [SUBMISSION.md](SUBMISSION.md), [COMPLIANCE.md](COMPLIANCE.md), [LIMITATIONS.md](LIMITATIONS.md), [PRD.md](PRD.md) | Submission details, requirement check, sources and licences, design |
 
-## Older scripts
+Other scripts in `scripts/` (Brave discovery, LinkedIn experiments, Google News, YouTube, reviews) come from the starter kit and are **not** used by the agent.
 
-The other scripts in `scripts/` (Brave discovery, LinkedIn experiments, Google News, YouTube, reviews) are from the starter kit. They are **not** used by the submitted run.
+## Sources and licences
+
+Brønnøysundregistrene Enhetsregisteret and Regnskapsregisteret open APIs (NLOD) · NAV job vacancy feed (official API, [NAV API terms](https://arbeidsplassen.nav.no/vilkar-api)) · company-owned websites, robots.txt respected. No search APIs, no LinkedIn, Meta, Google, Glassdoor or Indeed. Full details: [LIMITATIONS.md](LIMITATIONS.md).

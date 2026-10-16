@@ -11,3 +11,4 @@ smoke-companies.jsonl
 *.log
 sample*.jsonl
 /demo-companies.txt
+.venv-local/
