@@ -22,6 +22,9 @@ HIRING_TERMS = (
     "vacanc", "rekrutter", "recruit", "work-with-us", "jobbe-hos", "jobbe hos", "bli-en-av-oss",
 )
 NEWS_TERMS = ("nyheter", "nyhet", "news", "aktuelt", "presse", "press", "blogg", "blog", "artikler", "articles")
+# Static pages that SEO plugins often mark up as Article; never published as news.
+STATIC_PAGE_TERMS = ("kontakt", "contact", "om-oss", "om oss", "about", "personvern", "privacy", "cookie",
+                     "vilkar", "vilkår", "terms", "ansatte", "our-team")
 
 ATS_HOSTS = (
     "webcruiter.no", "webcruiter.com", "jobbnorge.no", "teamtailor.com", "recman.no", "recman.page",
@@ -100,6 +103,12 @@ def parse_date(value: Any) -> str | None:
         if day:
             return day.isoformat()
     return None
+
+
+def _static_page(url: str, title: str = "") -> bool:
+    path = urllib.parse.urlparse(url).path.casefold().strip("/")
+    haystack = path.split("/")[-1] + " " + title.casefold()
+    return not path or any(term in haystack for term in STATIC_PAGE_TERMS)
 
 
 def classify_page(url: str, title: str = "") -> str:
@@ -208,8 +217,8 @@ def extract_items(html: str, page_url: str, *, structured: dict[str, Any] | None
         if types & {"NewsArticle", "BlogPosting", "Article", "PressRelease", "Report"}:
             headline = _clean(node.get("headline") or node.get("name"), 300)
             published = parse_date(node.get("datePublished") or node.get("dateCreated"))
-            if headline and published:
-                url = urllib.parse.urljoin(page_url, str(node.get("url") or page_url))
+            url = urllib.parse.urljoin(page_url, str(node.get("url") or page_url))
+            if headline and published and not _static_page(url, headline):
                 news[url] = {"title": headline, "url": url, "published": published, "claim_span": headline, "method": "json_ld_article"}
 
     # 2. Article page meta (this page itself is a dated article).
@@ -219,7 +228,7 @@ def extract_items(html: str, page_url: str, *, structured: dict[str, Any] | None
         published = parse_date(meta_time.get("content"))
         og_title = soup.select_one('meta[property="og:title"]')
         headline = _clean((og_title.get("content") if og_title else "") or title, 300)
-        if published and headline and page_url not in news:
+        if published and headline and page_url not in news and not _static_page(page_url, headline):
             news[page_url] = {"title": headline, "url": page_url, "published": published, "claim_span": headline, "method": "article_meta"}
 
     # 3. Link heuristics.

@@ -104,6 +104,15 @@ class SiteItemTests(unittest.TestCase):
         self.assertEqual([n["published"] for n in items["news"]], ["2026-09-02", "2026-03-14"])
         self.assertFalse(any("uten dato" in n["title"] for n in items["news"]))
 
+    def test_seo_article_markup_on_static_pages_is_not_news(self):
+        html = """<html><head><title>Kontakt old</title><script type="application/ld+json">
+        {"@type": "Article", "headline": "Kontakt old", "datePublished": "2015-05-28"}</script></head><body></body></html>"""
+        structured = {"json-ld": [{"@type": "Article", "headline": "Kontakt old", "datePublished": "2015-05-28"}]}
+        self.assertEqual(extract_items(html, "https://brandmaker.no/kontakt/", structured=structured)["news"], [])
+        post = {"json-ld": [{"@type": "Article", "headline": "Nytt verksted", "datePublished": "2026-09-01"}]}
+        news = extract_items(html.replace("Kontakt old", "Nytt verksted"), "https://fjordbygg.no/nyheter/nytt-verksted", structured=post)["news"]
+        self.assertEqual([n["title"] for n in news], ["Nytt verksted"])
+
     def test_org_numbers_need_a_cue(self):
         self.assertEqual(org_numbers_in_text("Fjordbygg AS · Org.nr. 923 609 016 · Tlf 55 55 55 55"), [ORG])
         self.assertEqual(org_numbers_in_text("NO 923609016 MVA"), [ORG])
