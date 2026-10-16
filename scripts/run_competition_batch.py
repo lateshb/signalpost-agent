@@ -138,6 +138,11 @@ def main() -> None:
     parser.add_argument("--no-nav-jobs", action="store_true", help="Disable job postings from NAV's job vacancy feed")
     parser.add_argument("--modules", default=DEFAULT_MODULES)
     args = parser.parse_args()
+    for stream in (sys.stdout, sys.stderr):  # Windows consoles may not encode Norwegian letters; never crash on a print
+        try:
+            stream.reconfigure(errors="backslashreplace")
+        except (AttributeError, ValueError):
+            pass
 
     run_started = time.monotonic()
     started_at = utc_now()

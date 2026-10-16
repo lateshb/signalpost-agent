@@ -8,18 +8,43 @@ Requirement-by-requirement check against the challenge page: [COMPLIANCE.md](COM
 
 Plan and design: [PRD.md](PRD.md). Sources and licences: [LIMITATIONS.md](LIMITATIONS.md). Submission details and the 100-company smoke-test result: [SUBMISSION.md](SUBMISSION.md), [`smoke/`](smoke/).
 
+## Install (any PC)
+
+Works on Windows, macOS and Linux. Needs internet access while running.
+
+**Option A — uv (recommended; what the official run uses).** Install uv once:
+
+- Windows (PowerShell): `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- macOS / Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Or with any existing Python: `pip install uv` (then use `python -m uv` if `uv` is not on your PATH)
+
+Open a new terminal, then in the repository folder run `uv sync --frozen`. uv downloads the pinned Python 3.12 and the exact dependency versions from `uv.lock`.
+
+**Option B — plain Python and pip (no uv).** Python 3.11 or newer:
+
+```bash
+python -m venv .venv
+```
+
+Activate it (`.venv\Scripts\activate` on Windows, `source .venv/bin/activate` on macOS/Linux), then:
+
+```bash
+pip install -r requirements.txt
+```
+
+Then run the commands below with `python` instead of `uv run python`. `requirements.txt` is exported from `uv.lock` with the same pinned versions.
+
 ## Run command (official)
 
 ```bash
 uv sync --frozen
-uv run python scripts/run_competition_batch.py \
-  --organisations INPUT_FILE \
-  --bulk REGISTRY_SNAPSHOT \
-  --output out/envelopes.jsonl \
-  --report out/report.json \
-  --run-id RUN_ID \
-  --html out/report.html
 ```
+
+```bash
+uv run python scripts/run_competition_batch.py --organisations INPUT_FILE --bulk REGISTRY_SNAPSHOT --output out/envelopes.jsonl --report out/report.json --run-id RUN_ID --html out/report.html
+```
+
+Each command is one line so it pastes the same into Windows (cmd or PowerShell), macOS and Linux terminals.
 
 - `INPUT_FILE`: JSON list, JSONL (`{"organisation_number": "..."}`) or plain text, one number per line. Bad or duplicate rows never crash the run.
 - `REGISTRY_SNAPSHOT`: Brreg entity bulk CSV, gzipped or plain. Optional; companies missing from it are looked up in the live registry.
@@ -40,28 +65,32 @@ No API keys are needed. Optional: `NAV_FEED_TOKEN` (a private token for NAV's jo
 
 ## 100-company smoke test
 
+`curl` ships with Windows 10+, macOS and Linux. The registry snapshot is optional (about 155 MB); without `--bulk` every company is looked up in the live registry instead.
+
 ```bash
-uv sync --frozen
-curl -L 'https://data.brreg.no/enhetsregisteret/api/enheter/lastned/csv' -o brreg-enheter.csv.gz
-curl -L 'https://builderr.ai/signalpost-company-universe-2025.jsonl.gz' -o signalpost-universe.jsonl.gz
-
-uv run python select_entry_batch.py --universe signalpost-universe.jsonl.gz --count 100 --output smoke-companies.jsonl
-
-uv run python scripts/run_competition_batch.py \
-  --organisations smoke-companies.jsonl --bulk brreg-enheter.csv.gz \
-  --output out/smoke-envelopes.jsonl --report out/smoke-report.json \
-  --run-id smoke-001 --html out/smoke-report.html
+curl -L "https://data.brreg.no/enhetsregisteret/api/enheter/lastned/csv" -o brreg-enheter.csv.gz
 ```
+
+```bash
+curl -L "https://builderr.ai/signalpost-company-universe-2025.jsonl.gz" -o signalpost-universe.jsonl.gz
+```
+
+```bash
+uv run python select_entry_batch.py --universe signalpost-universe.jsonl.gz --count 100 --output smoke-companies.jsonl
+```
+
+```bash
+uv run python scripts/run_competition_batch.py --organisations smoke-companies.jsonl --bulk brreg-enheter.csv.gz --output out/smoke-envelopes.jsonl --report out/smoke-report.json --run-id smoke-001 --html out/smoke-report.html
+```
+
+To re-run the exact 100 companies in this repository's result, use `--organisations smoke/smoke-companies.txt`.
 
 Then check `out/smoke-report.json`: `emitted_envelopes` should be 100, `validation.passed` true, and `companies_with_section_available` shows coverage per section. Open `out/smoke-report.html` to browse the profiles and click through to sources.
 
 Refresh check (should report 0 changes for an unchanged snapshot, apart from real changes on live sites):
 
 ```bash
-uv run python scripts/run_competition_batch.py \
-  --organisations smoke-companies.jsonl --bulk brreg-enheter.csv.gz \
-  --output out/smoke-envelopes-2.jsonl --report out/smoke-report-2.json \
-  --run-id smoke-002 --previous out/smoke-envelopes.jsonl
+uv run python scripts/run_competition_batch.py --organisations smoke-companies.jsonl --bulk brreg-enheter.csv.gz --output out/smoke-envelopes-2.jsonl --report out/smoke-report-2.json --run-id smoke-002 --previous out/smoke-envelopes.jsonl
 ```
 
 ## Tests
@@ -69,6 +98,8 @@ uv run python scripts/run_competition_batch.py \
 ```bash
 uv run --with pytest pytest -q
 ```
+
+Without uv: `pip install pytest`, then `python -m pytest -q`. Checked on Windows with Python 3.11 (pip route) and 3.12 (uv route).
 
 `tests/test_signalpost_v2.py` covers the new parts: job and news extraction, org-number detection, the strict identity gate, domain guessing, the envelope contract, refresh (idempotent + carry-forward), tolerant input, and an end-to-end runner test with a crashing company, a company that hits the deadline, one missing from the snapshot and a bad input row.
 

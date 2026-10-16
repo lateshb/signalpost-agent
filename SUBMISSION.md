@@ -5,15 +5,10 @@ Everything Builderr asks for in the submission email, in one place.
 ## Run command
 
 ```bash
-uv sync --frozen
-uv run python scripts/run_competition_batch.py \
-  --organisations INPUT_FILE \
-  --bulk REGISTRY_SNAPSHOT \
-  --output out/envelopes.jsonl \
-  --report out/report.json \
-  --run-id RUN_ID \
-  --html out/report.html
+uv sync --frozen && uv run python scripts/run_competition_batch.py --organisations INPUT_FILE --bulk REGISTRY_SNAPSHOT --output out/envelopes.jsonl --report out/report.json --run-id RUN_ID --html out/report.html
 ```
+
+Install steps for Windows, macOS and Linux (uv, or plain Python + `requirements.txt`): [README.md](README.md#install-any-pc).
 
 The agent researches only the organisation numbers in `INPUT_FILE`, live, at run time. `--bulk` is optional (identity anchor only; companies missing from it are looked up in the live registry). Time and parallelism can be set with `--deadline-seconds` (default 3000) and `--workers` (default 24); see [README.md](README.md). Exit code 0 when the output contract check passes.
 
